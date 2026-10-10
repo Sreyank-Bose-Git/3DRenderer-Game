@@ -11,6 +11,9 @@ public class Camera {
 
     Vector3 tempCoords;
 
+    double maxClimbHeight = 5.0;
+    double climbStep = 1.0;
+
     double velocity = 50;
     double speed;
 
@@ -43,8 +46,8 @@ public class Camera {
     }
 
     public void movementHandler() {
-        double timeStep = rendererPanel.frameInterval / 1000000000.0;
 
+        double timeStep = rendererPanel.frameInterval / 1000000000.0;
         double rY = Math.toRadians(rotation.y);
 
         double sinY = Math.sin(rY);
@@ -52,78 +55,187 @@ public class Camera {
 
         speed = velocity * timeStep;
 
-        tempCoords = new Vector3(coordinates.x, coordinates.y, coordinates.z);
+        // Start with the current position
+        tempCoords = new Vector3(
+                coordinates.x,
+                coordinates.y,
+                coordinates.z
+        );
 
-        // 1. Movement inputs (Horizontal)
-        if(rendererPanel.keyHandler.forward) {
-            tempCoords.x += speed * sinY;
-            tempCoords.z += speed * cosY;
-        }
-        if(rendererPanel.keyHandler.backward) {
-            tempCoords.x -= speed * sinY;
-            tempCoords.z -= speed * cosY;
-        }
-        if(rendererPanel.keyHandler.leftward) {
-            tempCoords.x -= speed * cosY;
-            tempCoords.z += speed * sinY;
-        }
-        if(rendererPanel.keyHandler.rightward) {
-            tempCoords.x += speed * cosY;
-            tempCoords.z -= speed * sinY;
+        // 1. Calculate horizontal movement
+        double moveX = 0;
+        double moveZ = 0;
+
+        if (rendererPanel.keyHandler.forward) {
+            moveX += speed * sinY;
+            moveZ += speed * cosY;
         }
 
-        // 2. Handle Jump Input *before* applying gravity/collisions
-        // (If your engine treats Up as positive Y, jump should decrease gravity or add directly to tempCoords.y)
-        if(rendererPanel.keyHandler.jumpPressed && onGround) {
+        if (rendererPanel.keyHandler.backward) {
+            moveX -= speed * sinY;
+            moveZ -= speed * cosY;
+        }
 
-            // Option B: Direct position shift override for testing purposes:
-            gravity -= jumpStrength;
+        if (rendererPanel.keyHandler.leftward) {
+            moveX -= speed * cosY;
+            moveZ += speed * sinY;
+        }
 
+        if (rendererPanel.keyHandler.rightward) {
+            moveX += speed * cosY;
+            moveZ -= speed * sinY;
+        }
+
+        // 2. Handle jumping independently of horizontal movement
+        if (rendererPanel.keyHandler.jumpPressed && onGround) {
+            gravity = -jumpStrength;
             onGround = false;
-            System.out.println("JUMP TRIGGERED!");
         }
 
-        // 3. Gravity calculation & Safety clamp
+        // 3. Apply gravity
         gravity += gravityAcceleration * timeStep;
+
         double fallAmount = gravity * timeStep;
-        if (fallAmount > maxFallPerFrame) {
-            fallAmount = maxFallPerFrame;
-        }
+        fallAmount = Math.min(fallAmount, maxFallPerFrame);
 
-        tempCoords.y -= fallAmount;
+        // 4. Resolve horizontal movement, allowing step climbing
 
-        // Assume airborne until a collision proves otherwise this frame
-        onGround = false;
+        Vector3 horizontalCoords = new Vector3(
+                coordinates.x + moveX,
+                coordinates.y,
+                coordinates.z + moveZ
+        );
 
-        // 4. Evaluate collisions across world triangles
-        for(int i = 0; rendererPanel.world.triangles[i] != null; i++) {
+        boolean horizontalBlocked = false;
+
+        for (int i = 0; rendererPanel.world.triangles[i] != null; i++) {
+
             var tri = rendererPanel.world.triangles[i];
+
             Vector3 a = rendererPanel.world.vertices[tri.index1].coordinates;
             Vector3 b = rendererPanel.world.vertices[tri.index2].coordinates;
             Vector3 c = rendererPanel.world.vertices[tri.index3].coordinates;
 
-            if(rendererPanel.collisionHandler.checkCameraTriangleCollision(a, b, c, "X", tempCoords,
-                    playerLength, playerWidth, playerHeight)) {
-                tempCoords.x = coordinates.x;
-            }
+            boolean collisionX =
+                    rendererPanel.collisionHandler.checkCameraTriangleCollision(
+                            a, b, c, "X", horizontalCoords,
+                            playerLength, playerWidth, playerHeight);
 
-            if(rendererPanel.collisionHandler.checkCameraTriangleCollision(a, b, c, "Y", tempCoords,
-                    playerLength, playerWidth, playerHeight)) {
-                // If we were falling down onto a floor
-                if (fallAmount > 0) {
-                    gravity = 0;
-                    onGround = true;
+            boolean collisionZ =
+                    rendererPanel.collisionHandler.checkCameraTriangleCollision(
+                            a, b, c, "Z", horizontalCoords,
+                            playerLength, playerWidth, playerHeight);
+
+            if (collisionX || collisionZ) {
+
+                boolean climbed = false;
+
+                // Do not force a climb while the player is jumping upward
+                if (gravity >= 0 && onGround) {
+
+                    for (double step = climbStep;
+                         step <= maxClimbHeight;
+                         step += climbStep) {
+
+                        Vector3 candidate = new Vector3(
+                                horizontalCoords.x,
+                                coordinates.y + step,
+                                horizontalCoords.z
+                        );
+
+                        boolean blocked = false;
+
+                        for (int j = 0;
+                             rendererPanel.world.triangles[j] != null;
+                             j++) {
+
+                            var other = rendererPanel.world.triangles[j];
+
+                            Vector3 oa =
+                                    rendererPanel.world.vertices[other.index1].coordinates;
+                            Vector3 ob =
+                                    rendererPanel.world.vertices[other.index2].coordinates;
+                            Vector3 oc =
+                                    rendererPanel.world.vertices[other.index3].coordinates;
+
+                            if (rendererPanel.collisionHandler.checkCameraTriangleCollision(
+                                    oa, ob, oc, "X", candidate,
+                                    playerLength, playerWidth, playerHeight)
+                                    ||
+                                    rendererPanel.collisionHandler.checkCameraTriangleCollision(
+                                            oa, ob, oc, "Y", candidate,
+                                            playerLength, playerWidth, playerHeight)
+                                    ||
+                                    rendererPanel.collisionHandler.checkCameraTriangleCollision(
+                                            oa, ob, oc, "Z", candidate,
+                                            playerLength, playerWidth, playerHeight)) {
+
+                                blocked = true;
+                                break;
+                            }
+                        }
+
+                        if (!blocked) {
+                            horizontalCoords.y = candidate.y;
+                            climbed = true;
+                            break;
+                        }
+                    }
                 }
-                tempCoords.y = coordinates.y;
-            }
 
-            if(rendererPanel.collisionHandler.checkCameraTriangleCollision(a, b, c, "Z", tempCoords,
-                    playerLength, playerWidth, playerHeight)) {
-                tempCoords.z = coordinates.z;
+                if (!climbed) {
+                    horizontalBlocked = true;
+                    break;
+                }
             }
         }
 
-        coordinates = new Vector3(tempCoords.x, tempCoords.y, tempCoords.z);
+        // If blocked, preserve the old horizontal position
+        if (!horizontalBlocked) {
+            tempCoords.x = horizontalCoords.x;
+            tempCoords.z = horizontalCoords.z;
+            tempCoords.y = horizontalCoords.y;
+        } else {
+            tempCoords.x = coordinates.x;
+            tempCoords.z = coordinates.z;
+        }
+
+        // 5. Resolve vertical movement separately
+        tempCoords.y -= fallAmount;
+        onGround = false;
+
+        for (int i = 0; rendererPanel.world.triangles[i] != null; i++) {
+
+            var tri = rendererPanel.world.triangles[i];
+
+            Vector3 a = rendererPanel.world.vertices[tri.index1].coordinates;
+            Vector3 b = rendererPanel.world.vertices[tri.index2].coordinates;
+            Vector3 c = rendererPanel.world.vertices[tri.index3].coordinates;
+
+            if (rendererPanel.collisionHandler.checkCameraTriangleCollision(
+                    a, b, c, "Y", tempCoords,
+                    playerLength, playerWidth, playerHeight)) {
+
+                // Only cancel downward movement.
+                // Upward movement must remain possible for jumping.
+                if (gravity >= 0) {
+                    tempCoords.y = coordinates.y;
+                    gravity = 0;
+                    onGround = true;
+                } else {
+                    // If the player's head hits a ceiling, stop upward movement.
+                    tempCoords.y = coordinates.y;
+                    gravity = 0;
+                }
+            }
+        }
+
+        // 6. Apply the final position
+        coordinates = new Vector3(
+                tempCoords.x,
+                tempCoords.y,
+                tempCoords.z
+        );
     }
 
     public void rotateHandler() {
