@@ -63,7 +63,7 @@ public class RendererPanel extends JPanel implements Runnable{
         scripts = new Scripts(this);
 
         renderer = new Renderer(this);
-        world = new World(50, 50, 1000, this);
+        world = new World(1600, 500, 1000, this);
         camera = new Camera(this);
 
         audioManager = new AudioManager(10);

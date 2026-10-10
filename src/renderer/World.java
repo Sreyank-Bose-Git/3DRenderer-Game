@@ -29,11 +29,11 @@ public class World {
 
 
 
+
     void createBasicWorld() {
 
         Texture grass = rendererPanel.textureManager.textures[0];
 
-        // Terrain settings
         int blocksX = 20;
         int blocksZ = 20;
         double blockSize = 20;
@@ -41,25 +41,27 @@ public class World {
         double startX = -(blocksX * blockSize) / 2.0;
         double startZ = -250;
 
-        // Create terrain blocks using nested loops
-        for (int x = 0; x < blocksX; x++) {
-            for (int z = 0; z < blocksZ; z++) {
+        // Shared grid vertices: prevents gaps between blocks
+        int[][] vertexIndices = new int[blocksX + 1][blocksZ + 1];
+
+        // Generate all vertices first
+        for (int x = 0; x <= blocksX; x++) {
+            for (int z = 0; z <= blocksZ; z++) {
 
                 double worldX = startX + x * blockSize;
                 double worldZ = startZ + z * blockSize;
 
-                // Distance from the mountain center
                 double centerX = 0;
-                double centerZ = startZ + (blocksZ * blockSize) / 2.0;
+                double centerZ = startZ + blocksZ * blockSize / 2.0;
 
-                double dx = worldX + blockSize / 2.0 - centerX;
-                double dz = worldZ + blockSize / 2.0 - centerZ;
+                double dx = worldX - centerX;
+                double dz = worldZ - centerZ;
 
                 double distance = Math.sqrt(dx * dx + dz * dz);
 
-                // Mountain height decreases with distance
-                double mountainRadius = 100;
-                double maxHeight = 100;
+                // Mountain shape
+                double mountainRadius = 120;
+                double maxHeight = 120;
 
                 double height = 0;
 
@@ -68,27 +70,28 @@ public class World {
                     height = maxHeight * factor * factor;
                 }
 
-                // Add some smaller hills
-                height += Math.max(0,
-                        8 * Math.sin(worldX * 0.04)
-                                * Math.cos(worldZ * 0.04));
+                // Rolling hills around the mountain
+                height += 5.0
+                        * Math.sin(worldX * 0.035)
+                        * Math.cos(worldZ * 0.035);
 
-                // Four corners of each terrain block
-                int v0 = addTerrainVertex(
-                        worldX, height, worldZ);
+                // Add vertex and remember its index
+                vertexIndices[x][z] = addTerrainVertex(
+                        worldX, height, worldZ
+                );
+            }
+        }
 
-                int v1 = addTerrainVertex(
-                        worldX + blockSize, height, worldZ);
+        // Generate two angled triangles for every block
+        for (int x = 0; x < blocksX; x++) {
+            for (int z = 0; z < blocksZ; z++) {
 
-                int v2 = addTerrainVertex(
-                        worldX + blockSize, height,
-                        worldZ + blockSize);
+                int v0 = vertexIndices[x][z];
+                int v1 = vertexIndices[x + 1][z];
+                int v2 = vertexIndices[x + 1][z + 1];
+                int v3 = vertexIndices[x][z + 1];
 
-                int v3 = addTerrainVertex(
-                        worldX, height,
-                        worldZ + blockSize);
-
-                // First textured triangle
+                // Triangle 1
                 storeTriangles(
                         v0, v1, v2,
                         grass, true,
@@ -97,7 +100,7 @@ public class World {
                         1, 1
                 );
 
-                // Second textured triangle
+                // Triangle 2
                 storeTriangles(
                         v0, v2, v3,
                         grass, true,
@@ -109,7 +112,6 @@ public class World {
         }
     }
 
-    // Helper: add a vertex and return its actual index
     int addTerrainVertex(double x, double y, double z) {
 
         int index = 0;
@@ -133,6 +135,7 @@ public class World {
 
         return index;
     }
+
 
 
 
