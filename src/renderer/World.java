@@ -8,6 +8,7 @@ import datatypes.Vector3;
 import objects.Vertex;
 
 import java.awt.*;
+import advanced.Object;
 
 public class World {
 
@@ -15,116 +16,120 @@ public class World {
     public Line[] lines;
     public Triangle[] triangles;
 
-    RendererPanel rendererPanel;
+    public RendererPanel rendererPanel;
 
-    public World(int vSize, int lSize, int tSize, RendererPanel rendererPanel) {
+    public World(int vSize, int lSize, int tSize,
+                 RendererPanel rendererPanel) {
 
-        vertices = new Vertex[vSize];
-        lines = new Line[lSize];
-        triangles = new Triangle[tSize];
+        vertices = new Vertex[Math.max(1, vSize)];
+        lines = new Line[Math.max(1, lSize)];
+        triangles = new Triangle[Math.max(1, tSize)];
+
         this.rendererPanel = rendererPanel;
 
         createBasicWorld();
     }
 
-
-
-
     void createBasicWorld() {
+        try {
+            long start = System.nanoTime();
 
-        Texture grass = rendererPanel.textureManager.textures[0];
+            Object cube = new Object(
+                    this,
+                    "/objects/cube.obj"
+            );
 
-        int blocksX = 20;
-        int blocksZ = 20;
-        double blockSize = 20;
+            System.out.println("OBJ/MTL loading: "
+                    + (System.nanoTime() - start) / 1_000_000 + " ms");
 
-        double startX = -(blocksX * blockSize) / 2.0;
-        double startZ = -250;
+            cube.scaleX = 10;
+            cube.scaleY = 10;
+            cube.scaleZ = 10;
 
-        // Shared grid vertices: prevents gaps between blocks
-        int[][] vertexIndices = new int[blocksX + 1][blocksZ + 1];
+            start = System.nanoTime();
+            cube.generate();
 
-        // Generate all vertices first
-        for (int x = 0; x <= blocksX; x++) {
-            for (int z = 0; z <= blocksZ; z++) {
+            System.out.println("Geometry generation: "
+                    + (System.nanoTime() - start) / 1_000_000 + " ms");
 
-                double worldX = startX + x * blockSize;
-                double worldZ = startZ + z * blockSize;
-
-                double centerX = 0;
-                double centerZ = startZ + blocksZ * blockSize / 2.0;
-
-                double dx = worldX - centerX;
-                double dz = worldZ - centerZ;
-
-                double distance = Math.sqrt(dx * dx + dz * dz);
-
-                // Mountain shape
-                double mountainRadius = 120;
-                double maxHeight = 120;
-
-                double height = 0;
-
-                if (distance < mountainRadius) {
-                    double factor = 1.0 - distance / mountainRadius;
-                    height = maxHeight * factor * factor;
-                }
-
-                // Rolling hills around the mountain
-                height += 5.0
-                        * Math.sin(worldX * 0.035)
-                        * Math.cos(worldZ * 0.035);
-
-                // Add vertex and remember its index
-                vertexIndices[x][z] = addTerrainVertex(
-                        worldX, height, worldZ
-                );
-            }
-        }
-
-        // Generate two angled triangles for every block
-        for (int x = 0; x < blocksX; x++) {
-            for (int z = 0; z < blocksZ; z++) {
-
-                int v0 = vertexIndices[x][z];
-                int v1 = vertexIndices[x + 1][z];
-                int v2 = vertexIndices[x + 1][z + 1];
-                int v3 = vertexIndices[x][z + 1];
-
-                // Triangle 1
-                storeTriangles(
-                        v0, v1, v2,
-                        grass, true,
-                        0, 0,
-                        1, 0,
-                        1, 1
-                );
-
-                // Triangle 2
-                storeTriangles(
-                        v0, v2, v3,
-                        grass, true,
-                        0, 0,
-                        1, 1,
-                        0, 1
-                );
-            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
+    // =========================================================
+    // AUTOMATIC ARRAY GROWTH
+    // =========================================================
+
+    private int findNextVertexIndex() {
+        for (int i = 0; i < vertices.length; i++) {
+            if (vertices[i] == null) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int findNextLineIndex() {
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i] == null) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int findNextTriangleIndex() {
+        for (int i = 0; i < triangles.length; i++) {
+            if (triangles[i] == null) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void growVertices() {
+        vertices = java.util.Arrays.copyOf(
+                vertices, vertices.length * 2
+        );
+    }
+
+    private void growLines() {
+        lines = java.util.Arrays.copyOf(
+                lines, lines.length * 2
+        );
+    }
+
+    private void growTriangles() {
+        triangles = java.util.Arrays.copyOf(
+                triangles, triangles.length * 2
+        );
+    }
+
+    // =========================================================
+    // NEXT VERTEX INDEX
+    // =========================================================
+
+    public int nextVertexIndex() {
+        int index = findNextVertexIndex();
+
+        if (index == -1) {
+            growVertices();
+            index = findNextVertexIndex();
+        }
+
+        return index;
+    }
+
+    // =========================================================
+    // ADD TERRAIN VERTEX
+    // =========================================================
+
     int addTerrainVertex(double x, double y, double z) {
-
-        int index = 0;
-
-        while (index < vertices.length && vertices[index] != null) {
-            index++;
-        }
-
-        if (index >= vertices.length) {
-            throw new IllegalStateException(
-                    "Not enough vertex capacity! Increase vSize."
-            );
-        }
+        int index = nextVertexIndex();
 
         storeVertex(
                 new Vector3(x, y, z),
@@ -136,9 +141,6 @@ public class World {
         return index;
     }
 
-
-
-
     // =========================================================
     // STORE VERTEX
     // =========================================================
@@ -149,25 +151,20 @@ public class World {
             int radius,
             boolean opacity) {
 
-        int i = 0;
+        int index = findNextVertexIndex();
 
-        while (i < vertices.length && vertices[i] != null) {
-            i++;
+        if (index == -1) {
+            growVertices();
+            index = findNextVertexIndex();
         }
 
-        if (i >= vertices.length) {
-            return;
-        }
-
-        vertices[i] =
-                new Vertex(
-                        coordinates,
-                        color,
-                        radius,
-                        opacity
-                );
+        vertices[index] = new Vertex(
+                coordinates,
+                color,
+                radius,
+                opacity
+        );
     }
-
 
     // =========================================================
     // STORE LINE
@@ -180,26 +177,21 @@ public class World {
             float thickness,
             boolean opacity) {
 
-        int i = 0;
+        int index = findNextLineIndex();
 
-        while (i < lines.length && lines[i] != null) {
-            i++;
+        if (index == -1) {
+            growLines();
+            index = findNextLineIndex();
         }
 
-        if (i >= lines.length) {
-            return;
-        }
-
-        lines[i] =
-                new Line(
-                        index1,
-                        index2,
-                        color,
-                        thickness,
-                        opacity
-                );
+        lines[index] = new Line(
+                index1,
+                index2,
+                color,
+                thickness,
+                opacity
+        );
     }
-
 
     // =========================================================
     // STORE TRIANGLE
@@ -215,26 +207,22 @@ public class World {
             double u2, double v2,
             double u3, double v3) {
 
-        int i = 0;
+        int index = findNextTriangleIndex();
 
-        while (i < triangles.length && triangles[i] != null) {
-            i++;
+        if (index == -1) {
+            growTriangles();
+            index = findNextTriangleIndex();
         }
 
-        if (i >= triangles.length) {
-            return;
-        }
-
-        triangles[i] =
-                new Triangle(
-                        index1,
-                        index2,
-                        index3,
-                        texture,
-                        opacity,
-                        u1, v1,
-                        u2, v2,
-                        u3, v3
-                );
+        triangles[index] = new Triangle(
+                index1,
+                index2,
+                index3,
+                texture,
+                opacity,
+                u1, v1,
+                u2, v2,
+                u3, v3
+        );
     }
 }

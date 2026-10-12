@@ -34,6 +34,12 @@ public class Texture {
         }
     }
 
+    public Texture(Color color) {
+        this.width = 1;
+        this.height = 1;
+        this.pixels = new Color[]{color};
+    }
+
     public static Texture load(String path)
             throws IOException {
 

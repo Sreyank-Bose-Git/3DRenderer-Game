@@ -19,10 +19,12 @@ public class Camera {
 
     double jumpStrength = 40;
 
-    double gravity = 150;
-    double gravityAcceleration = 50;
+    int gravityOn = 0;
+
+    double gravity = 150 * gravityOn;
+    double gravityAcceleration = 50 * gravityOn;
     boolean onGround = false;
-    double maxFallPerFrame = 10;
+    double maxFallPerFrame = 10 * gravityOn;
 
     double playerWidth = 5;
     double playerHeight = 20;

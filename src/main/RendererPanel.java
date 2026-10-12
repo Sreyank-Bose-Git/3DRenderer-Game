@@ -63,7 +63,7 @@ public class RendererPanel extends JPanel implements Runnable{
         scripts = new Scripts(this);
 
         renderer = new Renderer(this);
-        world = new World(1600, 500, 1000, this);
+        world = new World(200000, 10000, 10000, this);
         camera = new Camera(this);
 
         audioManager = new AudioManager(10);
@@ -114,27 +114,6 @@ public class RendererPanel extends JPanel implements Runnable{
         super.paintComponent(g);
 
         Graphics2D g2D = (Graphics2D) g;
-
-        g2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2D.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-
-        int width = getWidth();
-        int height = getHeight();
-
-        // Define your smooth sky gradient colors
-        // Top: Deep atmospheric/space blue
-        Color topColor = new Color(12, 24, 48);
-        // Bottom: Soft glowing horizon blue
-        Color horizonColor = new Color(115, 165, 215);
-
-        // Create the vertical gradient paint
-        GradientPaint skyGradient = new GradientPaint(
-                0, 0, topColor,             // Start at the very top (y = 0)
-                0, height, horizonColor     // End at the bottom of the window (y = height)
-        );
-
-        g2D.setPaint(skyGradient);
-        g2D.fillRect(0, 0, width, height);
 
         renderer.draw(g2D);
 
