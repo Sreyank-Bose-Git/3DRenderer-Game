@@ -1,13 +1,14 @@
 package main;
 
-import extras.AudioManager;
-import handler.KeyHandler;
-import handler.MouseHandler;
-import renderer.Camera;
-import handler.CollisionHandler;
-import renderer.Renderer;
-import renderer.World;
-import visuals.TextureManager;
+import exec.extras.AudioManager;
+import exec.handler.KeyHandler;
+import exec.handler.MouseHandler;
+import exec.renderer.Camera;
+import exec.handler.CollisionHandler;
+import exec.renderer.Renderer;
+import exec.renderer.World;
+import exec.visuals.LightManager;
+import exec.visuals.TextureManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -37,12 +38,12 @@ public class RendererPanel extends JPanel implements Runnable{
     public Renderer renderer;
     public World world;
     public KeyHandler keyHandler;
-    public Camera camera;
     public MouseHandler mouseHandler;
     public Scripts scripts;
     public CollisionHandler collisionHandler;
     public TextureManager textureManager;
     public AudioManager audioManager;
+    public LightManager lightManager;
 
     RendererPanel() {
 
@@ -60,11 +61,12 @@ public class RendererPanel extends JPanel implements Runnable{
         collisionHandler = new CollisionHandler();
         textureManager = new TextureManager(10);
 
+        lightManager = new LightManager();
+
         scripts = new Scripts(this);
 
         renderer = new Renderer(this);
-        world = new World(200000, 10000, 10000, this);
-        camera = new Camera(this);
+        world = new World(100, 100, 100, 100, 100, 10,this);
 
         audioManager = new AudioManager(10);
         audioManager.playAndLoopAudio(0);
@@ -106,7 +108,7 @@ public class RendererPanel extends JPanel implements Runnable{
         }
 
         renderer.update();
-        camera.update();
+        world.cameras[world.activeCameraIndex].update();
     }
 
     @Override

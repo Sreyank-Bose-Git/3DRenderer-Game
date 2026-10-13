@@ -1,6 +1,6 @@
-package objects;
+package types.objects;
 
-import visuals.Texture;
+import types.visuals.Texture;
 
 public class Triangle {
 

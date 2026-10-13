@@ -1,10 +1,10 @@
-package advanced;
+package types.advanced;
 
-import datatypes.Vector3;
-import file.MaterialParser;
-import file.ObjectParser;
-import renderer.World;
-import visuals.Texture;
+import types.datatypes.Vector3;
+import exec.file.MaterialParser;
+import exec.file.ObjectParser;
+import exec.renderer.World;
+import types.visuals.Texture;
 
 import java.awt.Color;
 import java.io.IOException;
@@ -17,6 +17,10 @@ public class Object {
 
     private final World world;
     private final ObjectParser.Data data;
+
+    int[] worldIndices;
+    private double[] center;
+    private boolean generated = false;
 
     public double x = 0;
     public double y = 0;
@@ -43,7 +47,7 @@ public class Object {
     // Default texture if a face has no usable material texture.
     public Texture texture;
 
-    // All materials loaded from the MTL file.
+    // All materials loaded from the MTL exec.file.
     public Map<String, MaterialParser.Material> materials =
             new LinkedHashMap<>();
 
@@ -84,7 +88,14 @@ public class Object {
         int triangleCount = 0;
 
         int vertexCount = data.vertices.size();
-        int[] worldIndices = new int[vertexCount];
+
+        if (generated) {
+            updateTransform();
+            return;
+        }
+
+        worldIndices = new int[vertexCount];
+        center = calculateCenter();
 
         System.out.println("OBJ vertices: " + vertexCount);
         System.out.println("OBJ faces: " + data.faces.size());
@@ -219,7 +230,39 @@ public class Object {
         System.out.println("Generated model vertices: " + vertexCount);
         System.out.println("Generated model triangles: " + triangleCount);
         System.out.println("Generated unique edges: " + edges.size());
+
+        generated = true;
     }
+
+
+    public void updateTransform() {
+        if (!generated) {
+            return;
+        }
+
+        for (int i = 0; i < data.vertices.size(); i++) {
+            double[] v = data.vertices.get(i);
+
+            double[] p = transform(
+                    v[0] - center[0],
+                    v[1] - center[1],
+                    v[2] - center[2]
+            );
+
+            world.updateVertex(
+                    worldIndices[i],
+                    new Vector3(
+                            p[0] + x,
+                            p[1] + y,
+                            p[2] + z
+                    ),
+                    vertexColor,
+                    vertexRadius,
+                    opaque
+            );
+        }
+    }
+
 
     private double[] calculateCenter() {
 

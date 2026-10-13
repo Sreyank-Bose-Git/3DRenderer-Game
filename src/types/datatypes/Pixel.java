@@ -1,4 +1,4 @@
-package datatypes;
+package types.datatypes;
 
 public class Pixel {
 

@@ -1,6 +1,6 @@
-package objects;
+package types.objects;
 
-import datatypes.Vector3;
+import types.datatypes.Vector3;
 
 import java.awt.*;
 

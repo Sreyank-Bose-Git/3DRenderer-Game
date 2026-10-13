@@ -1,5 +1,5 @@
 
-package visuals;
+package types.visuals;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;

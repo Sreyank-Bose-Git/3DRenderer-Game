@@ -1,6 +1,6 @@
-package visuals;
+package exec.visuals;
 
-import visuals.Texture;
+import types.visuals.Texture;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -28,7 +28,7 @@ public class TextureManager {
                     ImageIO.read(
                             Objects.requireNonNull(
                                     getClass().getResourceAsStream(
-                                            "/textures/blocks/grass.png"
+                                            "/visuals/textures/blocks/grass.png"
                                     )
                             )
                     )

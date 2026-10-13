@@ -1,4 +1,4 @@
-package objects;
+package types.objects;
 
 import java.awt.*;
 

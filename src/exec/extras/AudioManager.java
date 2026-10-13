@@ -1,4 +1,4 @@
-package extras;
+package exec.extras;
 
 import javax.sound.sampled.*;
 import java.net.URL;
@@ -24,7 +24,7 @@ public class AudioManager {
     public void playAudio(int index) {
 
         if(audioURLs[index] == null) {
-            System.err.println("Audio file not found: " + index);
+            System.err.println("Audio exec.file not found: " + index);
             return;
         }
 
@@ -42,7 +42,7 @@ public class AudioManager {
     public void playAndLoopAudio(int index) {
 
         if(audioURLs[index] == null) {
-            System.err.println("Audio file not found: " + index);
+            System.err.println("Audio exec.file not found: " + index);
             return;
         }
 

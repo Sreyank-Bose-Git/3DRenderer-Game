@@ -1,29 +1,39 @@
-package renderer;
+package exec.renderer;
 
 import main.RendererPanel;
-import visuals.Texture;
-import objects.Line;
-import objects.Triangle;
-import datatypes.Vector3;
-import objects.Vertex;
+import types.datatypes.Vector2;
+import types.visuals.Light;
+import types.visuals.Texture;
+import types.objects.Line;
+import types.objects.Triangle;
+import types.datatypes.Vector3;
+import types.objects.Vertex;
 
 import java.awt.*;
-import advanced.Object;
+import types.advanced.Object;
 
 public class World {
 
     public Vertex[] vertices;
     public Line[] lines;
     public Triangle[] triangles;
+    public Object[] objects;
+    public Light[] lights;
+
+    public int activeCameraIndex;
+    public Camera[] cameras;
 
     public RendererPanel rendererPanel;
 
-    public World(int vSize, int lSize, int tSize,
+    public World(int verticesSize, int linesSize, int trianglesSize, int objectsSize, int lightsSize, int camerasSize,
                  RendererPanel rendererPanel) {
 
-        vertices = new Vertex[Math.max(1, vSize)];
-        lines = new Line[Math.max(1, lSize)];
-        triangles = new Triangle[Math.max(1, tSize)];
+        vertices = new Vertex[Math.max(1, verticesSize)];
+        lines = new Line[Math.max(1, linesSize)];
+        triangles = new Triangle[Math.max(1, trianglesSize)];
+        objects = new Object[objectsSize];
+        lights = new Light[lightsSize];
+        cameras = new Camera[camerasSize];
 
         this.rendererPanel = rendererPanel;
 
@@ -31,35 +41,57 @@ public class World {
     }
 
     void createBasicWorld() {
-        try {
-            long start = System.nanoTime();
 
-            Object cube = new Object(
-                    this,
-                    "/objects/cube.obj"
-            );
+        storeCamera(new Vector3(0, 50, -200), new Vector2(0, 0));
+        activeCameraIndex = 0;
 
-            System.out.println("OBJ/MTL loading: "
-                    + (System.nanoTime() - start) / 1_000_000 + " ms");
+        storeLight(
+                "point",
+                1.0,
+                new Vector3(0, 200, -100),
+                new Vector3(0, 0, 0)
+        );
 
-            cube.scaleX = 10;
-            cube.scaleY = 10;
-            cube.scaleZ = 10;
-
-            start = System.nanoTime();
-            cube.generate();
-
-            System.out.println("Geometry generation: "
-                    + (System.nanoTime() - start) / 1_000_000 + " ms");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        storeObject("/types/objects/cube.obj");
+        objects[0].scaleZ *= 1000;
+        objects[0].scaleY *= 10;
+        objects[0].scaleX *= 1000;
+        objects[0].updateTransform();
     }
 
     // =========================================================
     // AUTOMATIC ARRAY GROWTH
     // =========================================================
+
+    private int findNextCameraIndex() {
+        for (int i = 0; i < cameras.length; i++) {
+            if (cameras[i] == null) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int findNextLightIndex() {
+        for (int i = 0; i < lights.length; i++) {
+            if (lights[i] == null) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int findNextObjectIndex() {
+        for (int i = 0; i < objects.length; i++) {
+            if (objects[i] == null) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     private int findNextVertexIndex() {
         for (int i = 0; i < vertices.length; i++) {
@@ -89,6 +121,24 @@ public class World {
         }
 
         return -1;
+    }
+
+    private void growCameras() {
+        cameras = java.util.Arrays.copyOf(
+                cameras, cameras.length * 2
+        );
+    }
+
+    private void growLights() {
+        lights = java.util.Arrays.copyOf(
+                lights, lights.length * 2
+        );
+    }
+
+    private void growObjects() {
+        objects = java.util.Arrays.copyOf(
+                objects, objects.length * 2
+        );
     }
 
     private void growVertices() {
@@ -141,9 +191,65 @@ public class World {
         return index;
     }
 
+
+    public void updateVertex(
+            int index,
+            Vector3 coordinates,
+            Color color,
+            int radius,
+            boolean opacity) {
+
+        vertices[index] = new Vertex(
+                coordinates,
+                color,
+                radius,
+                opacity
+        );
+    }
+
+
     // =========================================================
     // STORE VERTEX
     // =========================================================
+
+    public void storeCamera(Vector3 coordinates, Vector2 rotation) {
+        int index = findNextCameraIndex();
+
+        if (index == -1) {
+            growCameras();
+            index = findNextCameraIndex();
+        }
+
+        cameras[index] = new Camera(rendererPanel, coordinates, rotation);
+    }
+
+    public void storeLight(String lightType, double lightStrength, Vector3 coordinates, Vector3 rotation) {
+        int index = findNextLightIndex();
+
+        if (index == -1) {
+            growLights();
+            index = findNextLightIndex();
+        }
+
+        lights[index] = new Light(lightType, lightStrength, coordinates, rotation);
+    }
+
+    public void storeObject(String objPath) {
+        try {
+            int index = findNextObjectIndex();
+
+            if (index == -1) {
+                growObjects();
+                index = findNextObjectIndex();
+            }
+
+            objects[index] = new Object(this, objPath);
+            objects[index].generate();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public void storeVertex(
             Vector3 coordinates,

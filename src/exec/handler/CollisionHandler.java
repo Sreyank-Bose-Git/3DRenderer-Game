@@ -1,7 +1,7 @@
 
-package handler;
+package exec.handler;
 
-import datatypes.Vector3;
+import types.datatypes.Vector3;
 
 public class CollisionHandler {
 

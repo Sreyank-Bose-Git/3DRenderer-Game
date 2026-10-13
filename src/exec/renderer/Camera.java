@@ -1,7 +1,7 @@
-package renderer;
+package exec.renderer;
 
-import datatypes.Vector2;
-import datatypes.Vector3;
+import types.datatypes.Vector2;
+import types.datatypes.Vector3;
 import main.RendererPanel;
 
 public class Camera {
@@ -19,7 +19,7 @@ public class Camera {
 
     double jumpStrength = 40;
 
-    int gravityOn = 0;
+    int gravityOn = 1;
 
     double gravity = 150 * gravityOn;
     double gravityAcceleration = 50 * gravityOn;
@@ -32,11 +32,11 @@ public class Camera {
 
     RendererPanel rendererPanel;
 
-    public Camera(RendererPanel rendererPanel) {
+    public Camera(RendererPanel rendererPanel, Vector3 coordinates, Vector2 rotation) {
 
         this.rendererPanel = rendererPanel;
-        this.coordinates = new Vector3(0, 50, -200);
-        this.rotation = new Vector2(0, 0);
+        this.coordinates = coordinates;
+        this.rotation = rotation;
         this.tempCoords = this.coordinates;
     }
 

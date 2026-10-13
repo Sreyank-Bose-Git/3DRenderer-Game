@@ -1,4 +1,4 @@
-package renderer;
+package exec.renderer;
 
 import main.RendererPanel;
 
@@ -111,7 +111,7 @@ public class Renderer {
 
             rendererPanel.scripts.drawTriangle(
                     rendererPanel.world.triangles[i],
-                    rendererPanel.camera
+                    rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex]
             );
         }
 
@@ -130,7 +130,7 @@ public class Renderer {
 
             rendererPanel.scripts.drawLine(
                     rendererPanel.world.lines[i],
-                    rendererPanel.camera
+                    rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex]
             );
         }
 
@@ -149,7 +149,7 @@ public class Renderer {
 
             rendererPanel.scripts.drawVertex(
                     rendererPanel.world.vertices[i],
-                    rendererPanel.camera
+                    rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex]
             );
         }
 

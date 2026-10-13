@@ -1,6 +1,6 @@
 # 🎮 3DRenderer-Game
 
-A lightweight Java 3D terrain renderer and exploration prototype built with Swing and custom software rendering logic.
+A lightweight Java 3D terrain exec.renderer and exploration prototype built with Swing and custom software rendering logic.
 
 ## ✨ Highlights
 
@@ -24,13 +24,13 @@ A lightweight Java 3D terrain renderer and exploration prototype built with Swin
 
 ```text
 src/
-  datatypes/   # Core math and pixel data models
-  extras/      # Audio support
-  handler/     # Keyboard, mouse, collision handling
+  types.datatypes/   # Core math and pixel data models
+  exec.extras/      # Audio support
+  exec.handler/     # Keyboard, mouse, collision handling
   main/        # Entry and rendering scripts
-  objects/     # Scene primitives (Vertex, Line, Triangle)
-  renderer/    # Camera, world, and render pipeline
-  visuals/     # Texture loading and management
+  types.objects/     # Scene primitives (Vertex, Line, Triangle)
+  exec.renderer/    # Camera, world, and render pipeline
+  exec.visuals/     # Texture loading and management
 res/
   audio/
   textures/
