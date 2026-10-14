@@ -1,3 +1,4 @@
+
 package main;
 
 import types.datatypes.Pixel;
@@ -16,12 +17,62 @@ public class Scripts {
 
     RendererPanel rendererPanel;
 
+    private double[] frameNormalSums;
+    private Vector3[] frameNormalCache;
+    private boolean[] frameNormalReady;
+
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
     public Scripts(RendererPanel rendererPanel) {
         this.rendererPanel = rendererPanel;
+    }
+
+    /** Build vertex-normal sums once per frame in O(triangle count). */
+    public void beginFrame() {
+        if (rendererPanel.world == null || rendererPanel.world.vertices == null) {
+            frameNormalSums = null;
+            frameNormalCache = null;
+            frameNormalReady = null;
+            return;
+        }
+
+        int count = rendererPanel.world.vertices.length;
+        frameNormalSums = new double[Math.multiplyExact(count, 3)];
+        frameNormalCache = new Vector3[count];
+        frameNormalReady = new boolean[count];
+
+        Triangle[] triangles = rendererPanel.world.triangles;
+        Vertex[] vertices = rendererPanel.world.vertices;
+        if (triangles == null) return;
+
+        for (Triangle t : triangles) {
+            if (t == null) break;
+            int i1 = t.index1, i2 = t.index2, i3 = t.index3;
+            if (i1 < 0 || i2 < 0 || i3 < 0 ||
+                    i1 >= count || i2 >= count || i3 >= count) continue;
+
+            Vertex a = vertices[i1], b = vertices[i2], c = vertices[i3];
+            if (a == null || b == null || c == null ||
+                    a.coordinates == null || b.coordinates == null || c.coordinates == null) continue;
+
+            double abx = b.coordinates.x - a.coordinates.x;
+            double aby = b.coordinates.y - a.coordinates.y;
+            double abz = b.coordinates.z - a.coordinates.z;
+            double acx = c.coordinates.x - a.coordinates.x;
+            double acy = c.coordinates.y - a.coordinates.y;
+            double acz = c.coordinates.z - a.coordinates.z;
+            double nx = aby * acz - abz * acy;
+            double ny = abz * acx - abx * acz;
+            double nz = abx * acy - aby * acx;
+            if (nx * nx + ny * ny + nz * nz < 1e-20) continue;
+
+            int b1 = i1 * 3, b2 = i2 * 3, b3 = i3 * 3;
+            frameNormalSums[b1] += nx; frameNormalSums[b1 + 1] += ny; frameNormalSums[b1 + 2] += nz;
+            frameNormalSums[b2] += nx; frameNormalSums[b2 + 1] += ny; frameNormalSums[b2 + 2] += nz;
+            frameNormalSums[b3] += nx; frameNormalSums[b3 + 1] += ny; frameNormalSums[b3 + 2] += nz;
+        }
     }
 
 
@@ -46,8 +97,9 @@ public class Scripts {
         int index =
                 y * rendererPanel.screenWidth + x;
 
-        if (z < rendererPanel.renderer.zBuffer[index]) {
+        if (color == null || !Double.isFinite(z) || z <= 0.0) return;
 
+        if (z < rendererPanel.renderer.zBuffer[index]) {
             rendererPanel.renderer.zBuffer[index] = z;
             rendererPanel.renderer.cBuffer[index] = color;
         }
@@ -174,13 +226,12 @@ public class Scripts {
         cV1 = clipped[0];
         cV2 = clipped[1];
 
-        // -----------------------------------------------------
-        // Frustum rejection
-        // -----------------------------------------------------
-
-        if (!lineInsideFrustum(cV1, cV2)) {
-            return;
-        }
+        // Clip side planes too, preventing off-screen lines from producing
+        // extremely long rasterization loops.
+        clipped = clipLineFrustum(cV1, cV2);
+        if (clipped == null) return;
+        cV1 = clipped[0];
+        cV2 = clipped[1];
 
         // -----------------------------------------------------
         // Projection
@@ -356,68 +407,38 @@ public class Scripts {
     // LINE FRUSTUM REJECTION
     // =========================================================
 
-    private boolean lineInsideFrustum(
-            Vector3 a,
-            Vector3 b) {
+    private Vector3[] clipLineFrustum(Vector3 a, Vector3 b) {
+        double aspect = (double) rendererPanel.screenWidth / rendererPanel.screenHeight;
+        double focal = rendererPanel.renderer.focalLength;
+        if (!(focal > 0.0) || !Double.isFinite(focal)) return null;
 
-        double aspectRatio =
-                (double)
-                        rendererPanel.screenWidth /
-                        rendererPanel.screenHeight;
-
-        double focalLength =
-                rendererPanel.renderer.focalLength;
-
-        double leftA =
-                -a.z * aspectRatio / focalLength;
-
-        double leftB =
-                -b.z * aspectRatio / focalLength;
-
-        double rightA =
-                a.z * aspectRatio / focalLength;
-
-        double rightB =
-                b.z * aspectRatio / focalLength;
-
-        double bottomA =
-                -a.z / focalLength;
-
-        double bottomB =
-                -b.z / focalLength;
-
-        double topA =
-                a.z / focalLength;
-
-        double topB =
-                b.z / focalLength;
-
-        if (a.x < leftA &&
-                b.x < leftB) {
-
-            return false;
+        double t0 = 0.0, t1 = 1.0;
+        for (int plane = 0; plane < 4; plane++) {
+            double fa = frustumValue(a, plane, aspect, focal);
+            double fb = frustumValue(b, plane, aspect, focal);
+            if (!Double.isFinite(fa) || !Double.isFinite(fb)) return null;
+            if (fa < 0.0 && fb < 0.0) return null;
+            if ((fa < 0.0) != (fb < 0.0)) {
+                double denominator = fa - fb;
+                if (Math.abs(denominator) < 1e-15) return null;
+                double t = fa / denominator;
+                if (fa < 0.0) t0 = Math.max(t0, t);
+                else t1 = Math.min(t1, t);
+                if (t0 > t1) return null;
+            }
         }
 
-        if (a.x > rightA &&
-                b.x > rightB) {
-
-            return false;
-        }
-
-        if (a.y < bottomA &&
-                b.y < bottomB) {
-
-            return false;
-        }
-
-        return !(a.y > topA) ||
-                !(b.y > topB);
+        double dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+        return new Vector3[] {
+                new Vector3(a.x + dx * t0, a.y + dy * t0, a.z + dz * t0),
+                new Vector3(a.x + dx * t1, a.y + dy * t1, a.z + dz * t1)
+        };
     }
-
 
     // =========================================================
     // DRAW TRIANGLE
     // =========================================================
+
 
 
     public void drawTriangle(Triangle triangle, Camera camera) {
@@ -425,11 +446,19 @@ public class Scripts {
             return;
         }
 
-        Vertex vertex1 = rendererPanel.world.vertices[triangle.index1];
-        Vertex vertex2 = rendererPanel.world.vertices[triangle.index2];
-        Vertex vertex3 = rendererPanel.world.vertices[triangle.index3];
+        Vertex[] vertices = rendererPanel.world.vertices;
+        if (triangle.index1 < 0 || triangle.index2 < 0 || triangle.index3 < 0 ||
+                triangle.index1 >= vertices.length ||
+                triangle.index2 >= vertices.length ||
+                triangle.index3 >= vertices.length) return;
 
-        if (vertex1 == null || vertex2 == null || vertex3 == null) {
+        Vertex vertex1 = vertices[triangle.index1];
+        Vertex vertex2 = vertices[triangle.index2];
+        Vertex vertex3 = vertices[triangle.index3];
+
+        if (vertex1 == null || vertex2 == null || vertex3 == null ||
+                vertex1.coordinates == null || vertex2.coordinates == null ||
+                vertex3.coordinates == null) {
             return;
         }
 
@@ -438,37 +467,30 @@ public class Scripts {
             return;
         }
 
-        // Use world-space coordinates for lighting.
         Vector3 w1 = vertex1.coordinates;
         Vector3 w2 = vertex2.coordinates;
         Vector3 w3 = vertex3.coordinates;
 
-        Vector3 normal =
-                rendererPanel.lightManager.calculateNormal(w1, w2, w3);
+        // Smooth normals averaged from adjacent triangles.
+        Vector3 n1 = calculateSmoothVertexNormal(triangle.index1);
+        Vector3 n2 = calculateSmoothVertexNormal(triangle.index2);
+        Vector3 n3 = calculateSmoothVertexNormal(triangle.index3);
 
-        Vector3 center = new Vector3(
-                (w1.x + w2.x + w3.x) / 3.0,
-                (w1.y + w2.y + w3.y) / 3.0,
-                (w1.z + w2.z + w3.z) / 3.0
-        );
-
-        double intensity =
-                rendererPanel.lightManager.calculateIntensity(
-                        center,
-                        normal,
-                        rendererPanel.world.lights
-                );
-
-        // Transform the triangle into camera space for rendering.
         Vector3 cV1 = worldToCamera(w1, camera);
         Vector3 cV2 = worldToCamera(w2, camera);
         Vector3 cV3 = worldToCamera(w3, camera);
 
-        // Each point stores camera-space x, y, z and UV coordinates.
+        // Each vertex stores:
+        // camera XYZ, UV, world XYZ, normal XYZ.
         double[][] polygon = {
-                {cV1.x, cV1.y, cV1.z, triangle.u1, triangle.v1},
-                {cV2.x, cV2.y, cV2.z, triangle.u2, triangle.v2},
-                {cV3.x, cV3.y, cV3.z, triangle.u3, triangle.v3}
+                {cV1.x, cV1.y, cV1.z, triangle.u1, triangle.v1,
+                        w1.x, w1.y, w1.z, n1.x, n1.y, n1.z},
+
+                {cV2.x, cV2.y, cV2.z, triangle.u2, triangle.v2,
+                        w2.x, w2.y, w2.z, n2.x, n2.y, n2.z},
+
+                {cV3.x, cV3.y, cV3.z, triangle.u3, triangle.v3,
+                        w3.x, w3.y, w3.z, n3.x, n3.y, n3.z}
         };
 
         polygon = clipTexturedZ(
@@ -476,323 +498,58 @@ public class Scripts {
                 rendererPanel.renderer.nearPlane,
                 true
         );
-        if (polygon == null || polygon.length < 3) return;
+
+        if (polygon == null || polygon.length < 3) {
+            return;
+        }
 
         polygon = clipTexturedZ(
                 polygon,
                 rendererPanel.renderer.farPlane,
                 false
         );
-        if (polygon == null || polygon.length < 3) return;
+
+        if (polygon == null || polygon.length < 3) {
+            return;
+        }
 
         polygon = clipTexturedFrustum(polygon);
-        if (polygon == null || polygon.length < 3) return;
 
-        // Triangulate the clipped polygon. All pieces share the same flat lighting.
+        if (polygon == null || polygon.length < 3) {
+            return;
+        }
+
+        // Render each clipped triangle with per-pixel lighting.
         for (int i = 1; i < polygon.length - 1; i++) {
             rasterizeTexturedTriangle(
                     polygon[0],
                     polygon[i],
                     polygon[i + 1],
-                    texture,
-                    intensity
+                    texture
             );
         }
     }
 
-
-    // =========================================================
-    // RASTERIZE TRIANGLE
-    // =========================================================
-
-    private void rasterizeTriangle(
-            Vector3 cV1,
-            Vector3 cV2,
-            Vector3 cV3,
-            Color color) {
-
-        Vector2 ndc1 =
-                perspectiveProjection(cV1);
-
-        Vector2 ndc2 =
-                perspectiveProjection(cV2);
-
-        Vector2 ndc3 =
-                perspectiveProjection(cV3);
-
-        if (ndc1 == null ||
-                ndc2 == null ||
-                ndc3 == null) {
-
-            return;
+    private Vector3 calculateSmoothVertexNormal(int vertexIndex) {
+        if (frameNormalSums == null || vertexIndex < 0 ||
+                vertexIndex >= frameNormalSums.length) {
+            return new Vector3(0, 1, 0);
         }
+        if (frameNormalReady[vertexIndex]) return frameNormalCache[vertexIndex];
 
-        RasterVertex a =
-                new RasterVertex(
-                        ndc1,
-                        cV1.z,
-                        rendererPanel.screenWidth,
-                        rendererPanel.screenHeight
-                );
+        int base = vertexIndex * 3;
+        double nx = frameNormalSums[base];
+        double ny = frameNormalSums[base + 1];
+        double nz = frameNormalSums[base + 2];
+        double length = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        Vector3 normal = length < 1e-10
+                ? new Vector3(0, 1, 0)
+                : new Vector3(nx / length, ny / length, nz / length);
 
-        RasterVertex b =
-                new RasterVertex(
-                        ndc2,
-                        cV2.z,
-                        rendererPanel.screenWidth,
-                        rendererPanel.screenHeight
-                );
-
-        RasterVertex c =
-                new RasterVertex(
-                        ndc3,
-                        cV3.z,
-                        rendererPanel.screenWidth,
-                        rendererPanel.screenHeight
-                );
-
-        // -----------------------------------------------------
-        // Sort vertices by Y
-        // -----------------------------------------------------
-
-        if (a.y > b.y) {
-
-            RasterVertex temp = a;
-            a = b;
-            b = temp;
-        }
-
-        if (a.y > c.y) {
-
-            RasterVertex temp = a;
-            a = c;
-            c = temp;
-        }
-
-        if (b.y > c.y) {
-
-            RasterVertex temp = b;
-            b = c;
-            c = temp;
-        }
-
-        // -----------------------------------------------------
-        // Degenerate triangle
-        // -----------------------------------------------------
-
-        if (Math.abs(c.y - a.y) < 1e-9) {
-            return;
-        }
-
-        // -----------------------------------------------------
-        // Scanline range
-        // -----------------------------------------------------
-
-        int startY =
-                Math.max(
-                        0,
-                        (int) Math.ceil(a.y - 0.5)
-                );
-
-        int endY =
-                Math.min(
-                        rendererPanel.screenHeight - 1,
-                        (int) Math.floor(c.y - 0.5)
-                );
-
-        // -----------------------------------------------------
-        // Scan every pixel row
-        // -----------------------------------------------------
-
-        for (int y = startY;
-             y <= endY;
-             y++) {
-
-            double sampleY =
-                    y + 0.5;
-
-            ArrayList<EdgePoint> intersections =
-                    new ArrayList<>(2);
-
-            addEdgeIntersection(
-                    a,
-                    b,
-                    sampleY,
-                    intersections
-            );
-
-            addEdgeIntersection(
-                    b,
-                    c,
-                    sampleY,
-                    intersections
-            );
-
-            addEdgeIntersection(
-                    c,
-                    a,
-                    sampleY,
-                    intersections
-            );
-
-            if (intersections.size() < 2) {
-                continue;
-            }
-
-            EdgePoint left =
-                    intersections.get(0);
-
-            EdgePoint right =
-                    intersections.get(1);
-
-            if (left.x > right.x) {
-
-                EdgePoint temp = left;
-                left = right;
-                right = temp;
-            }
-
-            drawScanline(
-                    y,
-                    left.x,
-                    left.z,
-                    right.x,
-                    right.z,
-                    color
-            );
-        }
+        frameNormalCache[vertexIndex] = normal;
+        frameNormalReady[vertexIndex] = true;
+        return normal;
     }
-
-
-    // =========================================================
-    // ADD EDGE INTERSECTION
-    // =========================================================
-
-    private void addEdgeIntersection(
-            RasterVertex a,
-            RasterVertex b,
-            double y,
-            ArrayList<EdgePoint> intersections) {
-
-        if (Math.abs(a.y - b.y) < 1e-9) {
-            return;
-        }
-
-        boolean intersects =
-                (a.y <= y && y < b.y) ||
-                        (b.y <= y && y < a.y);
-
-        if (!intersects) {
-            return;
-        }
-
-        double t =
-                (y - a.y) /
-                        (b.y - a.y);
-
-        double x =
-                a.x +
-                        (b.x - a.x) * t;
-
-        double z =
-                a.z +
-                        (b.z - a.z) * t;
-
-        intersections.add(
-                new EdgePoint(x, z)
-        );
-    }
-
-
-    // =========================================================
-    // DRAW SCANLINE
-    // =========================================================
-
-    private void drawScanline(
-            int y,
-            double x1,
-            double z1,
-            double x2,
-            double z2,
-            Color color) {
-
-        if (y < 0 ||
-                y >= rendererPanel.screenHeight) {
-
-            return;
-        }
-
-        if (x1 > x2) {
-
-            double temp = x1;
-            x1 = x2;
-            x2 = temp;
-
-            temp = z1;
-            z1 = z2;
-            z2 = temp;
-        }
-
-        int startX =
-                (int) Math.ceil(x1 - 0.5);
-
-        int endX =
-                (int) Math.floor(x2 - 0.5);
-
-        startX =
-                Math.max(
-                        0,
-                        startX
-                );
-
-        endX =
-                Math.min(
-                        rendererPanel.screenWidth - 1,
-                        endX
-                );
-
-        if (startX > endX) {
-            return;
-        }
-
-        double dx =
-                x2 - x1;
-
-        if (Math.abs(dx) < 1e-12) {
-
-            putPixel(
-                    startX,
-                    y,
-                    Math.min(z1, z2),
-                    color
-            );
-
-            return;
-        }
-
-        double zPerX =
-                (z2 - z1) / dx;
-
-        double z =
-                z1 +
-                        (startX + 0.5 - x1)
-                                * zPerX;
-
-        for (int x = startX;
-             x <= endX;
-             x++) {
-
-            putPixel(
-                    x,
-                    y,
-                    z,
-                    color
-            );
-
-            z += zPerX;
-        }
-    }
-
 
     // =========================================================
     // TEXTURED TRIANGLE CLIPPING (parallel UV values; no extra classes)
@@ -824,6 +581,8 @@ public class Scripts {
     private double[][] clipTexturedFrustum(double[][] polygon) {
         double aspectRatio = (double) rendererPanel.screenWidth / rendererPanel.screenHeight;
         double focalLength = rendererPanel.renderer.focalLength;
+        if (polygon == null || polygon.length < 3 ||
+                !(focalLength > 0.0) || !Double.isFinite(focalLength)) return null;
         for (int plane = 0; plane < 4; plane++) {
             polygon = clipTexturedFrustumPlane(polygon, plane, aspectRatio, focalLength);
             if (polygon == null) return null;
@@ -856,52 +615,60 @@ public class Scripts {
         return output.size() < 3 ? null : output.toArray(new double[0][]);
     }
 
-    private double[] interpolateTextured(double[] a, double[] b, double t, double forcedZ) {
-        double[] result = new double[5];
-        for (int i = 0; i < 5; i++) result[i] = a[i] + (b[i] - a[i]) * t;
-        if (!Double.isNaN(forcedZ)) result[2] = forcedZ;
+
+    private double[] interpolateTextured(
+            double[] a, double[] b, double t, double forcedZ) {
+
+        double[] result = new double[11];
+
+        for (int i = 0; i < 11; i++) {
+            result[i] = a[i] + (b[i] - a[i]) * t;
+        }
+
+        if (!Double.isNaN(forcedZ)) {
+            result[2] = forcedZ;
+        }
+
         return result;
     }
 
+
     // Perspective-correct scanline rasterization. Screen points store [x,y,z,u,v].
+
 
     private void rasterizeTexturedTriangle(
             double[] p0,
             double[] p1,
             double[] p2,
-            Texture texture,
-            double intensity) {
+            Texture texture) {
 
         Vector2 n0 = perspectiveProjection(
                 new Vector3(p0[0], p0[1], p0[2])
         );
+
         Vector2 n1 = perspectiveProjection(
                 new Vector3(p1[0], p1[1], p1[2])
         );
+
         Vector2 n2 = perspectiveProjection(
                 new Vector3(p2[0], p2[1], p2[2])
         );
 
-        if (n0 == null || n1 == null || n2 == null) return;
-
-        double[][] a = screenTexturedPoint(n0, p0);
-        double[][] b = screenTexturedPoint(n1, p1);
-        double[][] c = screenTexturedPoint(n2, p2);
-
-        // Sort by screen Y.
-        if (a[0][1] > b[0][1]) {
-            double[][] t = a; a = b; b = t;
-        }
-        if (a[0][1] > c[0][1]) {
-            double[][] t = a; a = c; c = t;
-        }
-        if (b[0][1] > c[0][1]) {
-            double[][] t = b; b = c; c = t;
+        if (n0 == null || n1 == null || n2 == null) {
+            return;
         }
 
-        double[] va = a[0], vb = b[0], vc = c[0];
+        double[] va = screenTexturedPoint(n0, p0);
+        double[] vb = screenTexturedPoint(n1, p1);
+        double[] vc = screenTexturedPoint(n2, p2);
 
-        if (Math.abs(vc[1] - va[1]) < 1e-9) return;
+        if (va[1] > vb[1]) { double[] t = va; va = vb; vb = t; }
+        if (va[1] > vc[1]) { double[] t = va; va = vc; vc = t; }
+        if (vb[1] > vc[1]) { double[] t = vb; vb = vc; vc = t; }
+
+        if (Math.abs(vc[1] - va[1]) < 1e-9) {
+            return;
+        }
 
         int startY = Math.max(
                 0,
@@ -915,13 +682,16 @@ public class Scripts {
 
         for (int y = startY; y <= endY; y++) {
             double sy = y + 0.5;
+
             ArrayList<double[]> hits = new ArrayList<>(2);
 
             addTexturedEdgeHit(va, vb, sy, hits);
             addTexturedEdgeHit(vb, vc, sy, hits);
             addTexturedEdgeHit(vc, va, sy, hits);
 
-            if (hits.size() < 2) continue;
+            if (hits.size() < 2) {
+                continue;
+            }
 
             double[] left = hits.get(0);
             double[] right = hits.get(1);
@@ -936,47 +706,82 @@ public class Scripts {
                     y,
                     left,
                     right,
-                    texture,
-                    intensity
+                    texture
             );
         }
     }
 
 
-    private double[][] screenTexturedPoint(Vector2 ndc, double[] cameraPoint) {
+
+
+    private double[] screenTexturedPoint(Vector2 ndc, double[] cameraPoint) {
         double z = cameraPoint[2];
         double invZ = 1.0 / z;
-        return new double[][] {{
+
+        return new double[] {
                 (ndc.x + 1.0) * 0.5 * (rendererPanel.screenWidth - 1),
                 (1.0 - ndc.y) * 0.5 * (rendererPanel.screenHeight - 1),
-                z, cameraPoint[3] * invZ, cameraPoint[4] * invZ, invZ
-        }};
+                z,
+                cameraPoint[3] * invZ,
+                cameraPoint[4] * invZ,
+                invZ,
+                cameraPoint[5] * invZ,
+                cameraPoint[6] * invZ,
+                cameraPoint[7] * invZ,
+                cameraPoint[8] * invZ,
+                cameraPoint[9] * invZ,
+                cameraPoint[10] * invZ
+        };
     }
 
-    private void addTexturedEdgeHit(double[] a, double[] b, double y, ArrayList<double[]> hits) {
-        if (Math.abs(a[1] - b[1]) < 1e-9) return;
-        boolean intersects = (a[1] <= y && y < b[1]) || (b[1] <= y && y < a[1]);
-        if (!intersects) return;
+
+
+    private void addTexturedEdgeHit(
+            double[] a,
+            double[] b,
+            double y,
+            ArrayList<double[]> hits) {
+
+        if (Math.abs(a[1] - b[1]) < 1e-9) {
+            return;
+        }
+
+        boolean intersects =
+                (a[1] <= y && y < b[1])
+                        || (b[1] <= y && y < a[1]);
+
+        if (!intersects) {
+            return;
+        }
+
         double t = (y - a[1]) / (b[1] - a[1]);
-        double[] hit = new double[6];
-        for (int i = 0; i < 6; i++) hit[i] = a[i] + (b[i] - a[i]) * t;
+
+        double[] hit = new double[12];
+
+        for (int i = 0; i < 12; i++) {
+            hit[i] = a[i] + (b[i] - a[i]) * t;
+        }
+
         hits.add(hit);
     }
+
+
 
 
     private void drawTexturedScanline(
             int y,
             double[] left,
             double[] right,
-            Texture texture,
-            double intensity) {
+            Texture texture) {
 
-        if (y < 0 || y >= rendererPanel.screenHeight) return;
+        if (y < 0 || y >= rendererPanel.screenHeight) {
+            return;
+        }
 
         if (left[0] > right[0]) {
-            double[] t = left;
+            double[] temp = left;
             left = right;
-            right = t;
+            right = temp;
         }
 
         int startX = Math.max(
@@ -989,7 +794,9 @@ public class Scripts {
                 (int) Math.floor(right[0] - 0.5)
         );
 
-        if (startX > endX) return;
+        if (startX > endX) {
+            return;
+        }
 
         double dx = right[0] - left[0];
         double step = Math.abs(dx) < 1e-12 ? 0 : 1.0 / dx;
@@ -999,25 +806,55 @@ public class Scripts {
                 : (startX + 0.5 - left[0]) * step;
 
         for (int x = startX; x <= endX; x++, t += step) {
+
             double invZ = left[5] + (right[5] - left[5]) * t;
 
-            if (invZ <= 0 || !Double.isFinite(invZ)) continue;
+            if (invZ <= 0 || !Double.isFinite(invZ)) {
+                continue;
+            }
 
+            // Perspective-correct texture coordinates.
             double u = (left[3] + (right[3] - left[3]) * t) / invZ;
             double v = (left[4] + (right[4] - left[4]) * t) / invZ;
 
+            // Perspective-correct world position.
+            double worldX = (left[6] + (right[6] - left[6]) * t) / invZ;
+            double worldY = (left[7] + (right[7] - left[7]) * t) / invZ;
+            double worldZ = (left[8] + (right[8] - left[8]) * t) / invZ;
+
+            // Perspective-correct interpolated normal.
+            double nx = (left[9] + (right[9] - left[9]) * t) / invZ;
+            double ny = (left[10] + (right[10] - left[10]) * t) / invZ;
+            double nz = (left[11] + (right[11] - left[11]) * t) / invZ;
+
+            double normalLength = Math.sqrt(nx * nx + ny * ny + nz * nz);
+
+            if (normalLength > 1e-10) {
+                nx /= normalLength;
+                ny /= normalLength;
+                nz /= normalLength;
+            } else {
+                nx = 0;
+                ny = 1;
+                nz = 0;
+            }
+
+            double intensity = rendererPanel.lightManager.calculateIntensity(
+                    worldX, worldY, worldZ, nx, ny, nz,
+                    rendererPanel.world.lights
+            );
+
             Color texel = texture.sampleRepeat(u, v);
 
-            // Apply lighting to the texture's sampled color.
-            Color litColor =
-                    rendererPanel.lightManager.applyLighting(
-                            texel,
-                            intensity
-                    );
+            Color litColor = rendererPanel.lightManager.applyLighting(
+                    texel,
+                    intensity
+            );
 
             putPixel(x, y, 1.0 / invZ, litColor);
         }
     }
+
 
 
 
@@ -1098,238 +935,15 @@ public class Scripts {
     // CLIP POLYGON
     // =========================================================
 
-    public Vector3[] clipPolygon(
-            Vector3[] input,
-            double plane,
-            boolean keepGreater) {
-
-        if (input == null ||
-                input.length == 0) {
-
-            return null;
-        }
-
-        ArrayList<Vector3> output =
-                new ArrayList<>();
-
-        for (int i = 0;
-             i < input.length;
-             i++) {
-
-            Vector3 current =
-                    input[i];
-
-            Vector3 previous =
-                    input[
-                            (i + input.length - 1)
-                                    % input.length
-                            ];
-
-            boolean currentInside =
-                    keepGreater
-                            ? current.z >= plane
-                            : current.z <= plane;
-
-            boolean previousInside =
-                    keepGreater
-                            ? previous.z >= plane
-                            : previous.z <= plane;
-
-            if (!previousInside &&
-                    currentInside) {
-
-                output.add(
-                        intersectionWithZPlane(
-                                previous,
-                                current,
-                                plane
-                        )
-                );
-
-                output.add(current);
-
-            } else if (previousInside &&
-                    currentInside) {
-
-                output.add(current);
-
-            } else if (previousInside) {
-
-                output.add(
-                        intersectionWithZPlane(
-                                previous,
-                                current,
-                                plane
-                        )
-                );
-            }
-        }
-
-        if (output.size() < 3) {
-            return null;
-        }
-
-        return output.toArray(
-                new Vector3[0]
-        );
-    }
-
 
     // =========================================================
     // FRUSTUM CLIPPING
     // =========================================================
 
-    private Vector3[] clipFrustum(
-            Vector3[] polygon) {
-
-        double aspectRatio =
-                (double)
-                        rendererPanel.screenWidth /
-                        rendererPanel.screenHeight;
-
-        double focalLength =
-                rendererPanel.renderer.focalLength;
-
-        // LEFT
-        polygon =
-                clipFrustumPlane(
-                        polygon,
-                        0,
-                        aspectRatio,
-                        focalLength
-                );
-
-        if (polygon == null) {
-            return null;
-        }
-
-        // RIGHT
-        polygon =
-                clipFrustumPlane(
-                        polygon,
-                        1,
-                        aspectRatio,
-                        focalLength
-                );
-
-        if (polygon == null) {
-            return null;
-        }
-
-        // BOTTOM
-        polygon =
-                clipFrustumPlane(
-                        polygon,
-                        2,
-                        aspectRatio,
-                        focalLength
-                );
-
-        if (polygon == null) {
-            return null;
-        }
-
-        // TOP
-        polygon =
-                clipFrustumPlane(
-                        polygon,
-                        3,
-                        aspectRatio,
-                        focalLength
-                );
-
-        return polygon;
-    }
-
 
     // =========================================================
     // FRUSTUM PLANE
     // =========================================================
-
-    private Vector3[] clipFrustumPlane(
-            Vector3[] polygon,
-            int plane,
-            double aspectRatio,
-            double focalLength) {
-
-        ArrayList<Vector3> output =
-                new ArrayList<>();
-
-        for (int i = 0;
-             i < polygon.length;
-             i++) {
-
-            Vector3 current =
-                    polygon[i];
-
-            Vector3 previous =
-                    polygon[
-                            (i + polygon.length - 1)
-                                    % polygon.length
-                            ];
-
-            double currentValue =
-                    frustumValue(
-                            current,
-                            plane,
-                            aspectRatio,
-                            focalLength
-                    );
-
-            double previousValue =
-                    frustumValue(
-                            previous,
-                            plane,
-                            aspectRatio,
-                            focalLength
-                    );
-
-            boolean currentInside =
-                    currentValue >= 0;
-
-            boolean previousInside =
-                    previousValue >= 0;
-
-            if (!previousInside &&
-                    currentInside) {
-
-                output.add(
-                        frustumIntersection(
-                                previous,
-                                current,
-                                previousValue,
-                                currentValue
-                        )
-                );
-
-                output.add(current);
-
-            } else if (previousInside &&
-                    currentInside) {
-
-                output.add(current);
-
-            } else if (previousInside) {
-
-                output.add(
-                        frustumIntersection(
-                                previous,
-                                current,
-                                previousValue,
-                                currentValue
-                        )
-                );
-            }
-        }
-
-        if (output.size() < 3) {
-            return null;
-        }
-
-        return output.toArray(
-                new Vector3[0]
-        );
-    }
 
 
     // =========================================================
@@ -1374,73 +988,10 @@ public class Scripts {
     // FRUSTUM INTERSECTION
     // =========================================================
 
-    private Vector3 frustumIntersection(
-            Vector3 previous,
-            Vector3 current,
-            double previousValue,
-            double currentValue) {
-
-        double t =
-                previousValue /
-                        (previousValue -
-                                currentValue);
-
-        return new Vector3(
-
-                previous.x +
-                        t *
-                                (current.x -
-                                        previous.x),
-
-                previous.y +
-                        t *
-                                (current.y -
-                                        previous.y),
-
-                previous.z +
-                        t *
-                                (current.z -
-                                        previous.z)
-        );
-    }
-
 
     // =========================================================
     // Z-PLANE INTERSECTION
     // =========================================================
-
-    private Vector3 intersectionWithZPlane(
-            Vector3 a,
-            Vector3 b,
-            double plane) {
-
-        double denominator =
-                b.z - a.z;
-
-        if (Math.abs(denominator) < 1e-12) {
-
-            return new Vector3(
-                    a.x,
-                    a.y,
-                    plane
-            );
-        }
-
-        double t =
-                (plane - a.z) /
-                        denominator;
-
-        return new Vector3(
-
-                a.x +
-                        t * (b.x - a.x),
-
-                a.y +
-                        t * (b.y - a.y),
-
-                plane
-        );
-    }
 
 
     // =========================================================
@@ -1565,7 +1116,6 @@ public class Scripts {
         );
     }
 
-
     // =========================================================
     // PERSPECTIVE PROJECTION
     // =========================================================
@@ -1658,55 +1208,5 @@ public class Scripts {
                         ndcToScreenY(ndc.y)
                 )
         );
-    }
-
-
-    // =========================================================
-    // INTERNAL RASTER VERTEX
-    // =========================================================
-
-    public static class RasterVertex {
-
-        public double x;
-        public double y;
-        public double z;
-
-        RasterVertex(
-                Vector2 ndc,
-                double z,
-                int screenWidth,
-                int screenHeight) {
-
-            this.x =
-                    (ndc.x + 1.0)
-                            * 0.5
-                            * (screenWidth - 1);
-
-            this.y =
-                    (1.0 - ndc.y)
-                            * 0.5
-                            * (screenHeight - 1);
-
-            this.z = z;
-        }
-    }
-
-
-    // =========================================================
-    // INTERNAL EDGE POINT
-    // =========================================================
-
-    private static class EdgePoint {
-
-        double x;
-        double z;
-
-        EdgePoint(
-                double x,
-                double z) {
-
-            this.x = x;
-            this.z = z;
-        }
     }
 }

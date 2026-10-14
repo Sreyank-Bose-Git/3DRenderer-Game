@@ -15,7 +15,7 @@ import java.awt.*;
 
 public class RendererPanel extends JPanel implements Runnable{
 
-    public final int resolution = 4;
+    public final int resolution = 2; // less than or equal to 16
 
     public final int singlePixelSize = 16 / resolution;
 
@@ -25,7 +25,7 @@ public class RendererPanel extends JPanel implements Runnable{
     public final int screenWidth = totalScreenCols * singlePixelSize;
     public final int screenHeight = totalScreenRows * singlePixelSize;
 
-    public final int framesPerSecond = 200;
+    public final int framesPerSecond = 160;
     public final long frameInterval = 1000000000 / framesPerSecond;
     public long workTime;
 

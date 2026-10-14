@@ -47,9 +47,9 @@ public class World {
 
         storeLight(
                 "point",
-                1.0,
-                new Vector3(0, 200, -100),
-                new Vector3(0, 0, 0)
+                5.0,
+                new Vector3(0, 50, -200),
+                new Vector3(0, 0, 180)
         );
 
         storeObject("/types/objects/cube.obj");

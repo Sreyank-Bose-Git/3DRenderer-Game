@@ -1,202 +1,105 @@
 package exec.renderer;
 
 import main.RendererPanel;
+import types.objects.Line;
+import types.objects.Triangle;
+import types.objects.Vertex;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.util.Arrays;
 
 public class Renderer {
 
-    RendererPanel rendererPanel;
+    public final RendererPanel rendererPanel;
 
-    public double focalLength = 1;
-
+    public double focalLength = 1.0;
     public double nearPlane = 0.01;
-    public double farPlane = 1000;
+    public double farPlane = 1000.0;
 
-    // =========================================================
-    // BUFFERS
-    // =========================================================
+    public final double[] zBuffer;
+    public final Color[] cBuffer;
+    public final BufferedImage screenBuffer;
 
-    public double[] zBuffer;
-
-    public Color[] cBuffer;
-
-    public BufferedImage screenBuffer;
-
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
+    // Direct access avoids calling BufferedImage.setRGB once per screen pixel.
+    private final int[] imagePixels;
 
     public Renderer(RendererPanel rendererPanel) {
-
+        if (rendererPanel == null) {
+            throw new IllegalArgumentException("rendererPanel cannot be null");
+        }
         this.rendererPanel = rendererPanel;
 
-        int size =
-                rendererPanel.screenWidth *
-                        rendererPanel.screenHeight;
+        int width = rendererPanel.screenWidth;
+        int height = rendererPanel.screenHeight;
 
-
-        // Z-buffer
-
-        zBuffer =
-                new double[size];
-
-
-        // Color buffer
-
-        cBuffer =
-                new Color[size];
-
-
-        // Buffered image
-
-        screenBuffer =
-                new BufferedImage(
-                        rendererPanel.screenWidth,
-                        rendererPanel.screenHeight,
-                        BufferedImage.TYPE_INT_ARGB
-                );
+        int size = Math.multiplyExact(width, height);
+        zBuffer = new double[size];
+        cBuffer = new Color[size];
+        screenBuffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        imagePixels = ((DataBufferInt) screenBuffer.getRaster().getDataBuffer()).getData();
     }
-
-
-    // =========================================================
-    // UPDATE
-    // =========================================================
 
     public void update() {
-
+        // Reserved for future renderer-side updates.
     }
 
-
-    // =========================================================
-    // DRAW
-    // =========================================================
-
     public void draw(Graphics2D g2D) {
+        if (g2D == null || rendererPanel.world == null) return;
 
-        // =====================================================
-        // CLEAR Z-BUFFER
-        // =====================================================
+        Arrays.fill(zBuffer, Double.POSITIVE_INFINITY);
+        Arrays.fill(cBuffer, Color.BLACK);
 
-        Arrays.fill(
-                zBuffer,
-                Double.POSITIVE_INFINITY
-        );
-
-
-        // =====================================================
-        // CLEAR COLOR BUFFER
-        // =====================================================
-
-        Arrays.fill(
-                cBuffer,
-                Color.BLACK
-        );
-
-
-        // =====================================================
-        // DRAW TRIANGLES
-        // =====================================================
-
-        for (int i = 0;
-             i < rendererPanel.world.triangles.length;
-             i++) {
-
-            if (rendererPanel.world.triangles[i] == null) {
-                break;
-            }
-
-            rendererPanel.scripts.drawTriangle(
-                    rendererPanel.world.triangles[i],
-                    rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex]
-            );
+        if (rendererPanel.world.cameras == null ||
+                rendererPanel.world.activeCameraIndex < 0 ||
+                rendererPanel.world.activeCameraIndex >= rendererPanel.world.cameras.length) {
+            Arrays.fill(imagePixels, Color.BLACK.getRGB());
+            g2D.drawImage(screenBuffer, 0, 0, null);
+            return;
         }
 
-
-        // =====================================================
-        // DRAW LINES
-        // =====================================================
-
-        for (int i = 0;
-             i < rendererPanel.world.lines.length;
-             i++) {
-
-            if (rendererPanel.world.lines[i] == null) {
-                break;
-            }
-
-            rendererPanel.scripts.drawLine(
-                    rendererPanel.world.lines[i],
-                    rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex]
-            );
+        Camera camera = rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex];
+        if (camera == null || camera.coordinates == null || camera.rotation == null) {
+            Arrays.fill(imagePixels, Color.BLACK.getRGB());
+            g2D.drawImage(screenBuffer, 0, 0, null);
+            return;
         }
 
-
-        // =====================================================
-        // DRAW VERTICES
-        // =====================================================
-
-        for (int i = 0;
-             i < rendererPanel.world.vertices.length;
-             i++) {
-
-            if (rendererPanel.world.vertices[i] == null) {
-                break;
-            }
-
-            rendererPanel.scripts.drawVertex(
-                    rendererPanel.world.vertices[i],
-                    rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex]
-            );
+        // Precompute smooth vertex normals once per frame, rather than rescanning
+        // all triangles for each triangle vertex.
+        if (rendererPanel.scripts != null) {
+            rendererPanel.scripts.beginFrame();
         }
 
-
-        // =====================================================
-        // COPY COLOR BUFFER → BUFFERED IMAGE
-        // =====================================================
-
-        for (int y = 0;
-             y < rendererPanel.screenHeight;
-             y++) {
-
-            for (int x = 0;
-                 x < rendererPanel.screenWidth;
-                 x++) {
-
-                int index =
-                        y * rendererPanel.screenWidth + x;
-
-
-                Color color =
-                        cBuffer[index];
-
-
-                if (color == null) {
-                    color = Color.BLACK;
-                }
-
-
-                screenBuffer.setRGB(
-                        x,
-                        y,
-                        color.getRGB()
-                );
+        if (rendererPanel.world.triangles != null && rendererPanel.scripts != null) {
+            for (Triangle triangle : rendererPanel.world.triangles) {
+                if (triangle == null) break; // World arrays are expected to be densely packed.
+                rendererPanel.scripts.drawTriangle(triangle, camera);
             }
         }
 
+        if (rendererPanel.world.lines != null && rendererPanel.scripts != null) {
+            for (Line line : rendererPanel.world.lines) {
+                if (line == null) break;
+                rendererPanel.scripts.drawLine(line, camera);
+            }
+        }
 
-        // =====================================================
-        // DRAW BUFFERED IMAGE TO SCREEN
-        // =====================================================
+        if (rendererPanel.world.vertices != null && rendererPanel.scripts != null) {
+            for (Vertex vertex : rendererPanel.world.vertices) {
+                if (vertex == null) break;
+                rendererPanel.scripts.drawVertex(vertex, camera);
+            }
+        }
 
-        g2D.drawImage(
-                screenBuffer,
-                0,
-                0,
-                null
-        );
+        // Copy the Color[] framebuffer to the image in one linear pass.
+        for (int i = 0; i < cBuffer.length; i++) {
+            Color color = cBuffer[i];
+            imagePixels[i] = color == null ? 0xFF000000 : color.getRGB();
+        }
+
+        g2D.drawImage(screenBuffer, 0, 0, null);
     }
 }

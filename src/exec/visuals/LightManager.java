@@ -1,8 +1,6 @@
-
 package exec.visuals;
 
 import types.visuals.Light;
-import types.datatypes.Vector3;
 
 import java.awt.Color;
 
@@ -10,95 +8,98 @@ public class LightManager {
 
     public double ambientStrength = 0.2;
 
-    public Vector3 calculateNormal(Vector3 a, Vector3 b, Vector3 c) {
-        double abX = b.x - a.x;
-        double abY = b.y - a.y;
-        double abZ = b.z - a.z;
+    private static final double EPSILON_SQUARED = 1e-20;
 
-        double acX = c.x - a.x;
-        double acY = c.y - a.y;
-        double acZ = c.z - a.z;
-
-        double nx = abY * acZ - abZ * acY;
-        double ny = abZ * acX - abX * acZ;
-        double nz = abX * acY - abY * acX;
-
-        double length = Math.sqrt(nx * nx + ny * ny + nz * nz);
-
-        if (length < 1e-10) {
-            return new Vector3(0, 1, 0);
-        }
-
-        return new Vector3(nx / length, ny / length, nz / length);
-    }
-
+    /**
+     * Per-pixel lighting overload. nx, ny and nz should be a normalized normal.
+     * Uses Lambert diffuse lighting and distance attenuation for point lights.
+     */
     public double calculateIntensity(
-            Vector3 position,
-            Vector3 normal,
+            double px, double py, double pz,
+            double nx, double ny, double nz,
             Light[] lights) {
 
-        double intensity = ambientStrength;
+        double intensity = Math.max(0.0, ambientStrength);
+        if (lights == null) return clampIntensity(intensity);
 
         for (Light light : lights) {
-            if (light == null || light.lightStrength <= 0) {
+            if (light == null || light.lightStrength <= 0.0 || !Double.isFinite(light.lightStrength)) {
                 continue;
             }
 
-            double lx, ly, lz;
+            double lx;
+            double ly;
+            double lz;
+            double attenuation = 1.0;
 
             if ("directional".equalsIgnoreCase(light.lightType)) {
-                // rotation represents the direction the light shines.
-                // Reverse it to get the direction toward the light.
-                double rx = light.rotation.x;
-                double ry = light.rotation.y;
-                double rz = light.rotation.z;
+                if (light.rotation == null) continue;
 
-                double length = Math.sqrt(rx * rx + ry * ry + rz * rz);
-                if (length < 1e-10) {
-                    continue;
-                }
+                // rotation represents the direction the light travels, so reverse it
+                // to get the direction from the surface toward the light.
+                lx = -light.rotation.x;
+                ly = -light.rotation.y;
+                lz = -light.rotation.z;
 
-                lx = -rx / length;
-                ly = -ry / length;
-                lz = -rz / length;
+                double lengthSquared = lx * lx + ly * ly + lz * lz;
+                if (lengthSquared < EPSILON_SQUARED) continue;
+
+                double inverseLength = 1.0 / Math.sqrt(lengthSquared);
+                lx *= inverseLength;
+                ly *= inverseLength;
+                lz *= inverseLength;
 
             } else if ("point".equalsIgnoreCase(light.lightType)) {
-                lx = light.coordinates.x - position.x;
-                ly = light.coordinates.y - position.y;
-                lz = light.coordinates.z - position.z;
+                if (light.coordinates == null) continue;
 
-                double distance = Math.sqrt(lx * lx + ly * ly + lz * lz);
-                if (distance < 1e-10) {
-                    continue;
-                }
+                lx = light.coordinates.x - px;
+                ly = light.coordinates.y - py;
+                lz = light.coordinates.z - pz;
 
-                lx /= distance;
-                ly /= distance;
-                lz /= distance;
+                double distanceSquared = lx * lx + ly * ly + lz * lz;
+                if (distanceSquared < EPSILON_SQUARED || !Double.isFinite(distanceSquared)) continue;
+
+                double distance = Math.sqrt(distanceSquared);
+                double inverseDistance = 1.0 / distance;
+                lx *= inverseDistance;
+                ly *= inverseDistance;
+                lz *= inverseDistance;
+
+                // Smooth attenuation: close lights remain bright; distant lights fade.
+                attenuation = 1.0 / (1.0 + 0.02 * distance + 0.001 * distanceSquared);
 
             } else {
                 continue;
             }
 
-            double diffuse = Math.max(
-                    0.0,
-                    normal.x * lx +
-                            normal.y * ly +
-                            normal.z * lz
-            );
+            double diffuse = Math.max(0.0, nx * lx + ny * ly + nz * lz);
+            intensity += light.lightStrength * diffuse * attenuation;
 
-            intensity += light.lightStrength * diffuse;
+            // Once fully saturated, more lights cannot affect the output.
+            if (intensity >= 1.0) return 1.0;
         }
 
-        return Math.clamp(intensity, 0.0, 1.0);
+        return clampIntensity(intensity);
     }
 
     public Color applyLighting(Color base, double intensity) {
+        if (base == null) return Color.BLACK;
+        intensity = clampIntensity(intensity);
+
         return new Color(
-                (int) (base.getRed() * intensity),
-                (int) (base.getGreen() * intensity),
-                (int) (base.getBlue() * intensity),
+                clampChannel((int) Math.round(base.getRed() * intensity)),
+                clampChannel((int) Math.round(base.getGreen() * intensity)),
+                clampChannel((int) Math.round(base.getBlue() * intensity)),
                 base.getAlpha()
         );
+    }
+
+    private static double clampIntensity(double value) {
+        if (!Double.isFinite(value)) return 0.0;
+        return Math.clamp(value, 0.0, 1.0);
+    }
+
+    private static int clampChannel(int value) {
+        return Math.clamp(value, 0, 255);
     }
 }
