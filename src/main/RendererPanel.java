@@ -32,8 +32,13 @@ public class RendererPanel extends JPanel implements Runnable{
     public long startTime;
     public int frames;
 
+    public String gameState;
+
     public Thread rendererThread;
     public boolean rendererRunning = true;
+
+    PointerInfo pointerInfo;
+    Point mouseLocation;
 
     public Renderer renderer;
     public World world;
@@ -44,12 +49,14 @@ public class RendererPanel extends JPanel implements Runnable{
     public TextureManager textureManager;
     public AudioManager audioManager;
     public LightManager lightManager;
+    public Interface myInterface;
 
     RendererPanel() {
 
         this.setPreferredSize(new Dimension(screenWidth, screenHeight));
         this.setDoubleBuffered(true);
         this.setFocusable(true);
+        this.setBackground(Color.BLACK);
 
         keyHandler = new KeyHandler();
         this.addKeyListener(keyHandler);
@@ -69,7 +76,9 @@ public class RendererPanel extends JPanel implements Runnable{
         world = new World(100, 100, 100, 100, 100, 10,this);
 
         audioManager = new AudioManager(10);
-        audioManager.playAndLoopAudio(0);
+
+        gameState = "home";
+        myInterface = new Interface(this);
 
         rendererThread = new Thread(this);
         rendererThread.start();
@@ -103,12 +112,16 @@ public class RendererPanel extends JPanel implements Runnable{
 
     public void update() {
 
+        pointerInfo = MouseInfo.getPointerInfo();
+        mouseLocation = pointerInfo.getLocation();
+
         if(keyHandler.ePressed) {
             mouseHandler.isLocked = false;
         }
 
         renderer.update();
         world.cameras[world.activeCameraIndex].update();
+        myInterface.update();
     }
 
     @Override
@@ -118,6 +131,7 @@ public class RendererPanel extends JPanel implements Runnable{
         Graphics2D g2D = (Graphics2D) g;
 
         renderer.draw(g2D);
+        myInterface.draw(g2D);
 
         g2D.dispose();
     }

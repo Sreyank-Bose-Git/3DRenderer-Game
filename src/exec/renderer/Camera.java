@@ -42,12 +42,14 @@ public class Camera {
 
     public void update() {
 
-        rotateHandler();
+        if(rendererPanel.gameState.equals("play")) {
+            playRotateHandler();
 
-        movementHandler();
+            playMovementHandler();
+        }
     }
 
-    public void movementHandler() {
+    public void playMovementHandler() {
 
         double timeStep = rendererPanel.frameInterval / 1000000000.0;
         double rY = Math.toRadians(rotation.y);
@@ -240,7 +242,7 @@ public class Camera {
         );
     }
 
-    public void rotateHandler() {
+    public void playRotateHandler() {
         if (rendererPanel.mouseHandler.isLocked) {
             // 1. Add mouse deltas directly to camera rotation
             rotation.y += rendererPanel.mouseHandler.deltaYaw; // Yaw (Horizontal look)

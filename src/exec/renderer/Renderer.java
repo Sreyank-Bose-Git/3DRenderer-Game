@@ -10,6 +10,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.util.Arrays;
+import java.util.Objects;
 
 public class Renderer {
 
@@ -43,63 +44,69 @@ public class Renderer {
     }
 
     public void update() {
-        // Reserved for future renderer-side updates.
+        if(rendererPanel.gameState.equals("play")) {
+            // For playing.
+
+
+        }
     }
 
     public void draw(Graphics2D g2D) {
-        if (g2D == null || rendererPanel.world == null) return;
+        if(rendererPanel.gameState.equals("play")) {
+            if (g2D == null || rendererPanel.world == null) return;
 
-        Arrays.fill(zBuffer, Double.POSITIVE_INFINITY);
-        Arrays.fill(cBuffer, Color.BLACK);
+            Arrays.fill(zBuffer, Double.POSITIVE_INFINITY);
+            Arrays.fill(cBuffer, Color.BLACK);
 
-        if (rendererPanel.world.cameras == null ||
-                rendererPanel.world.activeCameraIndex < 0 ||
-                rendererPanel.world.activeCameraIndex >= rendererPanel.world.cameras.length) {
-            Arrays.fill(imagePixels, Color.BLACK.getRGB());
+            if (rendererPanel.world.cameras == null ||
+                    rendererPanel.world.activeCameraIndex < 0 ||
+                    rendererPanel.world.activeCameraIndex >= rendererPanel.world.cameras.length) {
+                Arrays.fill(imagePixels, Color.BLACK.getRGB());
+                g2D.drawImage(screenBuffer, 0, 0, null);
+                return;
+            }
+
+            Camera camera = rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex];
+            if (camera == null || camera.coordinates == null || camera.rotation == null) {
+                Arrays.fill(imagePixels, Color.BLACK.getRGB());
+                g2D.drawImage(screenBuffer, 0, 0, null);
+                return;
+            }
+
+            // Precompute smooth vertex normals once per frame, rather than rescanning
+            // all triangles for each triangle vertex.
+            if (rendererPanel.scripts != null) {
+                rendererPanel.scripts.beginFrame();
+            }
+
+            if (rendererPanel.world.triangles != null && rendererPanel.scripts != null) {
+                for (Triangle triangle : rendererPanel.world.triangles) {
+                    if (triangle == null) break; // World arrays are expected to be densely packed.
+                    rendererPanel.scripts.drawTriangle(triangle, camera);
+                }
+            }
+
+            if (rendererPanel.world.lines != null && rendererPanel.scripts != null) {
+                for (Line line : rendererPanel.world.lines) {
+                    if (line == null) break;
+                    rendererPanel.scripts.drawLine(line, camera);
+                }
+            }
+
+            if (rendererPanel.world.vertices != null && rendererPanel.scripts != null) {
+                for (Vertex vertex : rendererPanel.world.vertices) {
+                    if (vertex == null) break;
+                    rendererPanel.scripts.drawVertex(vertex, camera);
+                }
+            }
+
+            // Copy the Color[] framebuffer to the image in one linear pass.
+            for (int i = 0; i < cBuffer.length; i++) {
+                Color color = cBuffer[i];
+                imagePixels[i] = color == null ? 0xFF000000 : color.getRGB();
+            }
+
             g2D.drawImage(screenBuffer, 0, 0, null);
-            return;
         }
-
-        Camera camera = rendererPanel.world.cameras[rendererPanel.world.activeCameraIndex];
-        if (camera == null || camera.coordinates == null || camera.rotation == null) {
-            Arrays.fill(imagePixels, Color.BLACK.getRGB());
-            g2D.drawImage(screenBuffer, 0, 0, null);
-            return;
-        }
-
-        // Precompute smooth vertex normals once per frame, rather than rescanning
-        // all triangles for each triangle vertex.
-        if (rendererPanel.scripts != null) {
-            rendererPanel.scripts.beginFrame();
-        }
-
-        if (rendererPanel.world.triangles != null && rendererPanel.scripts != null) {
-            for (Triangle triangle : rendererPanel.world.triangles) {
-                if (triangle == null) break; // World arrays are expected to be densely packed.
-                rendererPanel.scripts.drawTriangle(triangle, camera);
-            }
-        }
-
-        if (rendererPanel.world.lines != null && rendererPanel.scripts != null) {
-            for (Line line : rendererPanel.world.lines) {
-                if (line == null) break;
-                rendererPanel.scripts.drawLine(line, camera);
-            }
-        }
-
-        if (rendererPanel.world.vertices != null && rendererPanel.scripts != null) {
-            for (Vertex vertex : rendererPanel.world.vertices) {
-                if (vertex == null) break;
-                rendererPanel.scripts.drawVertex(vertex, camera);
-            }
-        }
-
-        // Copy the Color[] framebuffer to the image in one linear pass.
-        for (int i = 0; i < cBuffer.length; i++) {
-            Color color = cBuffer[i];
-            imagePixels[i] = color == null ? 0xFF000000 : color.getRGB();
-        }
-
-        g2D.drawImage(screenBuffer, 0, 0, null);
     }
 }

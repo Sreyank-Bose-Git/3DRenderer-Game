@@ -1,5 +1,7 @@
 package exec.handler;
 
+import main.RendererPanel;
+
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -11,21 +13,29 @@ public class MouseHandler extends MouseAdapter implements MouseMotionListener {
     public double deltaPitch = 0;
 
     public boolean isLocked = false;
+    public boolean mousePressed = false;
 
     private Robot robot;
-    private Component panel;
+    private RendererPanel rendererPanel;
     private double sensitivity = 0.15;
 
-    public MouseHandler(Component panel) {
+    public MouseHandler(RendererPanel rendererPanel) {
 
-        this.panel = panel;
+        this.rendererPanel = rendererPanel;
         try { this.robot = new Robot(); } catch (Exception ignored) {}
     }
 
     @Override
     public void mousePressed(MouseEvent e) {
-        isLocked = true;
-        recenter();
+        mousePressed = true;
+        if(rendererPanel.gameState.equals("play")) {
+            isLocked = true;
+            recenter();
+        }
+    }
+    @Override
+    public void mouseReleased(MouseEvent e) {
+        mousePressed = false;
     }
 
     @Override
@@ -37,8 +47,8 @@ public class MouseHandler extends MouseAdapter implements MouseMotionListener {
     public void mouseMoved(MouseEvent e) {
         if (!isLocked) return;
 
-        int dx = e.getX() - (panel.getWidth() / 2);
-        int dy = e.getY() - (panel.getHeight() / 2);
+        int dx = e.getX() - (rendererPanel.getWidth() / 2);
+        int dy = e.getY() - (rendererPanel.getHeight() / 2);
 
         if (dx == 0 && dy == 0) return;
 
@@ -49,8 +59,8 @@ public class MouseHandler extends MouseAdapter implements MouseMotionListener {
     }
 
     private void recenter() {
-        if (!panel.isShowing()) return;
-        Point p = panel.getLocationOnScreen();
-        robot.mouseMove(p.x + panel.getWidth() / 2, p.y + panel.getHeight() / 2);
+        if (!rendererPanel.isShowing()) return;
+        Point p = rendererPanel.getLocationOnScreen();
+        robot.mouseMove(p.x + rendererPanel.getWidth() / 2, p.y + rendererPanel.getHeight() / 2);
     }
 }
