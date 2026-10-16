@@ -6,7 +6,7 @@ import java.net.URL;
 public class AudioManager {
 
     public URL[] audioURLs;
-    Clip clip;
+    public Clip clip;
     AudioInputStream audioInputStream;
 
     public AudioManager(int aSize) {

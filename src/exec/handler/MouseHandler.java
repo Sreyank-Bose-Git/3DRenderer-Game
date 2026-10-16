@@ -28,8 +28,7 @@ public class MouseHandler extends MouseAdapter implements MouseMotionListener {
     @Override
     public void mousePressed(MouseEvent e) {
         mousePressed = true;
-        if(rendererPanel.gameState.equals("play")) {
-            isLocked = true;
+        if(rendererPanel.gameState.equals("play") && isLocked) {
             recenter();
         }
     }
