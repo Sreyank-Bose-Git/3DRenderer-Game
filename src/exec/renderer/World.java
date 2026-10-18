@@ -1,48 +1,50 @@
 package exec.renderer;
 
+import exec.renderer.Camera;
 import main.RendererPanel;
 import types.datatypes.Vector2;
-import types.visuals.Light;
-import types.visuals.Texture;
-import types.objects.Line;
-import types.objects.Triangle;
 import types.datatypes.Vector3;
-import types.objects.Vertex;
+import types.meshes.Mesh;
+import types.visuals.Light;
+import types.meshes.Object;
 
-import java.awt.*;
-import types.advanced.Object;
+import java.util.Arrays;
 
 public class World {
 
-    public Vertex[] vertices;
-    public Line[] lines;
-    public Triangle[] triangles;
-    public Object[] objects;
+    public Mesh[] meshes;
     public Light[] lights;
-
-    public int activeCameraIndex;
     public Camera[] cameras;
 
+    public int activeCameraIndex;
     public RendererPanel rendererPanel;
 
-    public World(int verticesSize, int linesSize, int trianglesSize, int objectsSize, int lightsSize, int camerasSize,
-                 RendererPanel rendererPanel) {
+    public World(
+            int meshesSize,
+            int lightsSize,
+            int camerasSize,
+            RendererPanel rendererPanel) {
 
-        vertices = new Vertex[Math.max(1, verticesSize)];
-        lines = new Line[Math.max(1, linesSize)];
-        triangles = new Triangle[Math.max(1, trianglesSize)];
-        objects = new Object[objectsSize];
-        lights = new Light[lightsSize];
-        cameras = new Camera[camerasSize];
+        meshes = new Mesh[Math.max(1, meshesSize)];
+        lights = new Light[Math.max(1, lightsSize)];
+        cameras = new Camera[Math.max(1, camerasSize)];
 
         this.rendererPanel = rendererPanel;
 
         createBasicWorld();
     }
 
-    void createBasicWorld() {
+    // =========================================================
+    // INITIAL WORLD
+    // =========================================================
 
-        storeCamera(new Vector3(0, 50, -200), new Vector2(0, 0));
+    private void createBasicWorld() {
+
+        storeCamera(
+                new Vector3(0, 50, -200),
+                new Vector2(0, 0)
+        );
+
         activeCameraIndex = 0;
 
         storeLight(
@@ -53,14 +55,19 @@ public class World {
         );
 
         storeObject("/types/objects/cube.obj");
-        objects[0].scaleZ *= 1000;
-        objects[0].scaleY *= 10;
-        objects[0].scaleX *= 1000;
-        objects[0].updateTransform();
+
+        Mesh mesh = getMesh(0);
+
+        if (mesh != null) {
+            mesh.scaleX *= 1000;
+            mesh.scaleY *= 10;
+            mesh.scaleZ *= 1000;
+            mesh.updateTransform();
+        }
     }
 
     // =========================================================
-    // AUTOMATIC ARRAY GROWTH
+    // FIND AVAILABLE SLOTS
     // =========================================================
 
     private int findNextCameraIndex() {
@@ -83,9 +90,9 @@ public class World {
         return -1;
     }
 
-    private int findNextObjectIndex() {
-        for (int i = 0; i < objects.length; i++) {
-            if (objects[i] == null) {
+    private int findNextMeshIndex() {
+        for (int i = 0; i < meshes.length; i++) {
+            if (meshes[i] == null) {
                 return i;
             }
         }
@@ -93,126 +100,39 @@ public class World {
         return -1;
     }
 
-    private int findNextVertexIndex() {
-        for (int i = 0; i < vertices.length; i++) {
-            if (vertices[i] == null) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private int findNextLineIndex() {
-        for (int i = 0; i < lines.length; i++) {
-            if (lines[i] == null) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private int findNextTriangleIndex() {
-        for (int i = 0; i < triangles.length; i++) {
-            if (triangles[i] == null) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
+    // =========================================================
+    // GROW ARRAYS
+    // =========================================================
 
     private void growCameras() {
-        cameras = java.util.Arrays.copyOf(
-                cameras, cameras.length * 2
+        cameras = Arrays.copyOf(
+                cameras,
+                Math.max(1, cameras.length * 2)
         );
     }
 
     private void growLights() {
-        lights = java.util.Arrays.copyOf(
-                lights, lights.length * 2
+        lights = Arrays.copyOf(
+                lights,
+                Math.max(1, lights.length * 2)
         );
     }
 
-    private void growObjects() {
-        objects = java.util.Arrays.copyOf(
-                objects, objects.length * 2
-        );
-    }
-
-    private void growVertices() {
-        vertices = java.util.Arrays.copyOf(
-                vertices, vertices.length * 2
-        );
-    }
-
-    private void growLines() {
-        lines = java.util.Arrays.copyOf(
-                lines, lines.length * 2
-        );
-    }
-
-    private void growTriangles() {
-        triangles = java.util.Arrays.copyOf(
-                triangles, triangles.length * 2
+    private void growMeshes() {
+        meshes = Arrays.copyOf(
+                meshes,
+                Math.max(1, meshes.length * 2)
         );
     }
 
     // =========================================================
-    // NEXT VERTEX INDEX
+    // STORE CAMERA
     // =========================================================
 
-    public int nextVertexIndex() {
-        int index = findNextVertexIndex();
-
-        if (index == -1) {
-            growVertices();
-            index = findNextVertexIndex();
-        }
-
-        return index;
-    }
-
-    // =========================================================
-    // ADD TERRAIN VERTEX
-    // =========================================================
-
-    int addTerrainVertex(double x, double y, double z) {
-        int index = nextVertexIndex();
-
-        storeVertex(
-                new Vector3(x, y, z),
-                Color.WHITE,
-                1,
-                true
-        );
-
-        return index;
-    }
-
-
-    public void updateVertex(
-            int index,
+    public Camera storeCamera(
             Vector3 coordinates,
-            Color color,
-            int radius,
-            boolean opacity) {
+            Vector2 rotation) {
 
-        vertices[index] = new Vertex(
-                coordinates,
-                color,
-                radius,
-                opacity
-        );
-    }
-
-
-    // =========================================================
-    // STORE VERTEX
-    // =========================================================
-
-    public void storeCamera(Vector3 coordinates, Vector2 rotation) {
         int index = findNextCameraIndex();
 
         if (index == -1) {
@@ -220,10 +140,27 @@ public class World {
             index = findNextCameraIndex();
         }
 
-        cameras[index] = new Camera(rendererPanel, coordinates, rotation);
+        Camera camera = new Camera(
+                rendererPanel,
+                coordinates,
+                rotation
+        );
+
+        cameras[index] = camera;
+
+        return camera;
     }
 
-    public void storeLight(String lightType, double lightStrength, Vector3 coordinates, Vector3 rotation) {
+    // =========================================================
+    // STORE LIGHT
+    // =========================================================
+
+    public Light storeLight(
+            String lightType,
+            double lightStrength,
+            Vector3 coordinates,
+            Vector3 rotation) {
+
         int index = findNextLightIndex();
 
         if (index == -1) {
@@ -231,104 +168,99 @@ public class World {
             index = findNextLightIndex();
         }
 
-        lights[index] = new Light(lightType, lightStrength, coordinates, rotation);
+        Light light = new Light(
+                lightType,
+                lightStrength,
+                coordinates,
+                rotation
+        );
+
+        lights[index] = light;
+
+        return light;
     }
 
-    public void storeObject(String objPath) {
+    // =========================================================
+    // STORE OBJECT / MESH
+    // =========================================================
+
+    public Mesh storeObject(String objPath) {
+
+        int index = findNextMeshIndex();
+
+        if (index == -1) {
+            growMeshes();
+            index = findNextMeshIndex();
+        }
+
         try {
-            int index = findNextObjectIndex();
+            Mesh mesh = new Object(this, objPath);
+            mesh.generate();
 
-            if (index == -1) {
-                growObjects();
-                index = findNextObjectIndex();
-            }
+            meshes[index] = mesh;
 
-            objects[index] = new Object(this, objPath);
-            objects[index].generate();
+            return mesh;
 
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
     }
 
-    public void storeVertex(
-            Vector3 coordinates,
-            Color color,
-            int radius,
-            boolean opacity) {
+    // =========================================================
+    // GETTERS
+    // =========================================================
 
-        int index = findNextVertexIndex();
-
-        if (index == -1) {
-            growVertices();
-            index = findNextVertexIndex();
+    public Mesh getMesh(int index) {
+        if (index < 0 || index >= meshes.length) {
+            return null;
         }
 
-        vertices[index] = new Vertex(
-                coordinates,
-                color,
-                radius,
-                opacity
-        );
+        return meshes[index];
     }
 
-    // =========================================================
-    // STORE LINE
-    // =========================================================
-
-    public void storeLine(
-            int index1,
-            int index2,
-            Color color,
-            float thickness,
-            boolean opacity) {
-
-        int index = findNextLineIndex();
-
-        if (index == -1) {
-            growLines();
-            index = findNextLineIndex();
+    public Camera getActiveCamera() {
+        if (activeCameraIndex < 0
+                || activeCameraIndex >= cameras.length) {
+            return null;
         }
 
-        lines[index] = new Line(
-                index1,
-                index2,
-                color,
-                thickness,
-                opacity
-        );
+        return cameras[activeCameraIndex];
     }
 
-    // =========================================================
-    // STORE TRIANGLE
-    // =========================================================
+    public int getMeshCount() {
+        int count = 0;
 
-    public void storeTriangles(
-            int index1,
-            int index2,
-            int index3,
-            Texture texture,
-            boolean opacity,
-            double u1, double v1,
-            double u2, double v2,
-            double u3, double v3) {
-
-        int index = findNextTriangleIndex();
-
-        if (index == -1) {
-            growTriangles();
-            index = findNextTriangleIndex();
+        for (Mesh mesh : meshes) {
+            if (mesh != null) {
+                count++;
+            }
         }
 
-        triangles[index] = new Triangle(
-                index1,
-                index2,
-                index3,
-                texture,
-                opacity,
-                u1, v1,
-                u2, v2,
-                u3, v3
-        );
+        return count;
+    }
+
+    public int getLightCount() {
+        int count = 0;
+
+        for (Light light : lights) {
+            if (light != null) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    public int getCameraCount() {
+        int count = 0;
+
+        for (Camera camera : cameras) {
+            if (camera != null) {
+                count++;
+            }
+        }
+
+        return count;
     }
 }

@@ -1,4 +1,3 @@
-
 package main;
 
 import types.datatypes.Pixel;
@@ -31,20 +30,20 @@ public class Scripts {
 
     /** Build vertex-normal sums once per frame in O(triangle count). */
     public void beginFrame() {
-        if (rendererPanel.world == null || rendererPanel.world.vertices == null) {
+        if (rendererPanel.world == null || rendererPanel.renderer.currentVertices == null) {
             frameNormalSums = null;
             frameNormalCache = null;
             frameNormalReady = null;
             return;
         }
 
-        int count = rendererPanel.world.vertices.length;
+        Vertex[] vertices = rendererPanel.renderer.currentVertices;
+        int count = vertices.length;
         frameNormalSums = new double[Math.multiplyExact(count, 3)];
         frameNormalCache = new Vector3[count];
         frameNormalReady = new boolean[count];
 
-        Triangle[] triangles = rendererPanel.world.triangles;
-        Vertex[] vertices = rendererPanel.world.vertices;
+        Triangle[] triangles = rendererPanel.renderer.currentTriangles;
         if (triangles == null) return;
 
         for (Triangle t : triangles) {
@@ -167,11 +166,14 @@ public class Scripts {
             return;
         }
 
-        Vertex vertex1 =
-                rendererPanel.world.vertices[line.index1];
+        Vertex[] vertices = rendererPanel.renderer.currentVertices;
+        if (vertices == null || line.index1 < 0 || line.index2 < 0
+                || line.index1 >= vertices.length || line.index2 >= vertices.length) {
+            return;
+        }
 
-        Vertex vertex2 =
-                rendererPanel.world.vertices[line.index2];
+        Vertex vertex1 = vertices[line.index1];
+        Vertex vertex2 = vertices[line.index2];
 
         if (vertex1 == null ||
                 vertex2 == null) {
@@ -446,7 +448,7 @@ public class Scripts {
             return;
         }
 
-        Vertex[] vertices = rendererPanel.world.vertices;
+        Vertex[] vertices = rendererPanel.renderer.currentVertices;
         if (triangle.index1 < 0 || triangle.index2 < 0 || triangle.index3 < 0 ||
                 triangle.index1 >= vertices.length ||
                 triangle.index2 >= vertices.length ||
@@ -1056,63 +1058,6 @@ public class Scripts {
                 x1,
                 y2,
                 z2
-        );
-    }
-
-
-    // =========================================================
-    // CAMERA → WORLD
-    // =========================================================
-
-    public Vector3 cameraToWorld(
-            Vector3 cameraPoint,
-            Camera camera) {
-
-        double radYaw =
-                Math.toRadians(
-                        camera.rotation.y
-                );
-
-        double radPitch =
-                Math.toRadians(
-                        camera.rotation.x
-                );
-
-        double cosYaw =
-                Math.cos(radYaw);
-
-        double sinYaw =
-                Math.sin(radYaw);
-
-        double cosPitch =
-                Math.cos(radPitch);
-
-        double sinPitch =
-                Math.sin(radPitch);
-
-        double dy =
-                cameraPoint.y * cosPitch +
-                        cameraPoint.z * sinPitch;
-
-        double z1 =
-                -cameraPoint.y * sinPitch +
-                        cameraPoint.z * cosPitch;
-
-        double dx =
-                cameraPoint.x * cosYaw +
-                        z1 * sinYaw;
-
-        double dz =
-                -cameraPoint.x * sinYaw +
-                        z1 * cosYaw;
-
-        return new Vector3(
-
-                dx + camera.coordinates.x,
-
-                dy + camera.coordinates.y,
-
-                dz + camera.coordinates.z
         );
     }
 

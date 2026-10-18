@@ -3,7 +3,6 @@ package main;
 import exec.extras.AudioManager;
 import exec.handler.KeyHandler;
 import exec.handler.MouseHandler;
-import exec.renderer.Camera;
 import exec.handler.CollisionHandler;
 import exec.renderer.Renderer;
 import exec.renderer.World;
@@ -73,7 +72,7 @@ public class RendererPanel extends JPanel implements Runnable{
         scripts = new Scripts(this);
 
         renderer = new Renderer(this);
-        world = new World(100, 100, 100, 100, 100, 10,this);
+        world = new World(100, 100, 100, this);
 
         audioManager = new AudioManager(10);
 
