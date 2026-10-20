@@ -1,4 +1,4 @@
-package types.objects;
+package types.parts;
 
 import types.visuals.Texture;
 

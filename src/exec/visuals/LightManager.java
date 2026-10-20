@@ -1,6 +1,6 @@
 package exec.visuals;
 
-import types.visuals.Light;
+import types.things.Light;
 
 import java.awt.Color;
 

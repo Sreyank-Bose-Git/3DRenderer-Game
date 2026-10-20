@@ -1,4 +1,4 @@
-package types.meshes;
+package types.things;
 
 import types.datatypes.Vector3;
 import exec.file.MaterialParser;
@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class Object extends Mesh {
+public class Object extends Mesh{
 
     private final World world;
     private final ObjectParser.Data data;
@@ -33,9 +33,10 @@ public class Object extends Mesh {
     // Cache textures so the same material image is not loaded repeatedly.
     private final Map<String, Texture> textureCache = new HashMap<>();
 
-    public Object(World world, String objPath) throws IOException {
+    public Object(World world, String objPath, String collectionName) throws IOException {
         this.world = world;
         this.data = new ObjectParser().parse(objPath);
+        this.collectionName = collectionName;
 
         if (data.materialLibrary != null
                 && !data.materialLibrary.isBlank()) {

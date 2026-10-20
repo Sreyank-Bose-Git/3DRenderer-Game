@@ -3,9 +3,9 @@ package main;
 import types.datatypes.Pixel;
 import types.datatypes.Vector2;
 import types.datatypes.Vector3;
-import types.objects.Line;
-import types.objects.Triangle;
-import types.objects.Vertex;
+import types.parts.Line;
+import types.parts.Triangle;
+import types.parts.Vertex;
 import exec.renderer.Camera;
 import types.visuals.Texture;
 

@@ -1,13 +1,11 @@
-package types.visuals;
+package types.things;
 
 import types.datatypes.Vector3;
 
-public class Light {
+public class Light extends Thing{
 
     public String lightType;
     public double lightStrength;
-    public Vector3 coordinates;
-    public Vector3 rotation;
 
     public Light(String lightType, double lightStrength, Vector3 coordinates, Vector3 rotation) {
 

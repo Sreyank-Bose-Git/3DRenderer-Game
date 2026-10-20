@@ -4,8 +4,8 @@ package exec.renderer;
 import main.RendererPanel;
 import types.datatypes.Vector2;
 import types.datatypes.Vector3;
-import types.meshes.Mesh;
-import types.meshes.Mesh.TriangleData;
+import types.things.Mesh;
+import types.things.Mesh.TriangleData;
 
 public class Camera {
 
@@ -289,12 +289,12 @@ public class Camera {
             Vector3 out
     ) {
 
-        double x = vertex.x * mesh.scaleX;
-        double y = vertex.y * mesh.scaleY;
-        double z = vertex.z * mesh.scaleZ;
+        double x = vertex.x * mesh.scale.x;
+        double y = vertex.y * mesh.scale.y;
+        double z = vertex.z * mesh.scale.z;
 
         // Rotation X.
-        double angle = Math.toRadians(mesh.rotationX);
+        double angle = Math.toRadians(mesh.rotation.x);
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
 
@@ -305,7 +305,7 @@ public class Camera {
         z = nextZ;
 
         // Rotation Y.
-        angle = Math.toRadians(mesh.rotationY);
+        angle = Math.toRadians(mesh.rotation.y);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
 
@@ -316,7 +316,7 @@ public class Camera {
         z = nextZ;
 
         // Rotation Z.
-        angle = Math.toRadians(mesh.rotationZ);
+        angle = Math.toRadians(mesh.rotation.z);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
 
@@ -327,9 +327,9 @@ public class Camera {
         y = nextY;
 
         // Translation.
-        out.x = x + mesh.x;
-        out.y = y + mesh.y;
-        out.z = z + mesh.z;
+        out.x = x + mesh.coordinates.x;
+        out.y = y + mesh.coordinates.y;
+        out.z = z + mesh.coordinates.z;
     }
 
     public void playRotateHandler() {

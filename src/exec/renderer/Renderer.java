@@ -2,10 +2,10 @@ package exec.renderer;
 
 import main.RendererPanel;
 import types.datatypes.Vector3;
-import types.meshes.Mesh;
-import types.objects.Line;
-import types.objects.Triangle;
-import types.objects.Vertex;
+import types.things.Mesh;
+import types.parts.Line;
+import types.parts.Triangle;
+import types.parts.Vertex;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -176,18 +176,18 @@ public class Renderer {
 
     /** Scale, rotate X then Y then Z, then translate, without per-frame allocations. */
     private void transformInto(Vector3 vertex, Mesh mesh, Vector3 out) {
-        double x = vertex.x * mesh.scaleX;
-        double y = vertex.y * mesh.scaleY;
-        double z = vertex.z * mesh.scaleZ;
+        double x = vertex.x * mesh.scale.x;
+        double y = vertex.y * mesh.scale.y;
+        double z = vertex.z * mesh.scale.z;
 
-        double angle = Math.toRadians(mesh.rotationX);
+        double angle = Math.toRadians(mesh.rotation.x);
         double cos = Math.cos(angle), sin = Math.sin(angle);
         double ny = y * cos - z * sin;
         double nz = y * sin + z * cos;
         y = ny;
         z = nz;
 
-        angle = Math.toRadians(mesh.rotationY);
+        angle = Math.toRadians(mesh.rotation.y);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
         double nx = x * cos + z * sin;
@@ -195,7 +195,7 @@ public class Renderer {
         x = nx;
         z = nz;
 
-        angle = Math.toRadians(mesh.rotationZ);
+        angle = Math.toRadians(mesh.rotation.z);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
         nx = x * cos - y * sin;
@@ -203,9 +203,9 @@ public class Renderer {
         x = nx;
         y = ny;
 
-        out.x = x + mesh.x;
-        out.y = y + mesh.y;
-        out.z = z + mesh.z;
+        out.x = x + mesh.coordinates.x;
+        out.y = y + mesh.coordinates.y;
+        out.z = z + mesh.coordinates.z;
     }
 
     private void drawBlackScreen(Graphics2D g2D) {

@@ -1,12 +1,13 @@
 package exec.renderer;
 
-import exec.renderer.Camera;
+import exec.extras.Collection;
 import main.RendererPanel;
 import types.datatypes.Vector2;
 import types.datatypes.Vector3;
-import types.meshes.Mesh;
-import types.visuals.Light;
-import types.meshes.Object;
+import types.things.Mesh;
+import types.things.Light;
+import types.things.Object;
+import types.things.Thing;
 
 import java.util.Arrays;
 
@@ -16,6 +17,8 @@ public class World {
     public Light[] lights;
     public Camera[] cameras;
 
+    public Collection[] collections;
+
     public int activeCameraIndex;
     public RendererPanel rendererPanel;
 
@@ -23,11 +26,15 @@ public class World {
             int meshesSize,
             int lightsSize,
             int camerasSize,
+            int collectionsSize,
             RendererPanel rendererPanel) {
 
         meshes = new Mesh[Math.max(1, meshesSize)];
         lights = new Light[Math.max(1, lightsSize)];
         cameras = new Camera[Math.max(1, camerasSize)];
+        collections = new Collection[collectionsSize];
+
+        storeCollection("default");
 
         this.rendererPanel = rendererPanel;
 
@@ -54,21 +61,30 @@ public class World {
                 new Vector3(0, 0, 180)
         );
 
-        storeObject("/types/objects/cube.obj");
+        storeObject("/types/objects/cube.obj", "IamFat");
 
         Mesh mesh = getMesh(0);
 
         if (mesh != null) {
-            mesh.scaleX *= 1000;
-            mesh.scaleY *= 10;
-            mesh.scaleZ *= 1000;
-            mesh.updateTransform();
+            mesh.scale.x *= 1000;
+            mesh.scale.y *= 10;
+            mesh.scale.z *= 1000;
         }
     }
 
     // =========================================================
     // FIND AVAILABLE SLOTS
     // =========================================================
+
+    private int findNextCollectionIndex() {
+        for (int i = 0; i < collections.length; i++) {
+            if (collections[i] == null) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     private int findNextCameraIndex() {
         for (int i = 0; i < cameras.length; i++) {
@@ -104,6 +120,13 @@ public class World {
     // GROW ARRAYS
     // =========================================================
 
+    private void growCollections() {
+        collections = Arrays.copyOf(
+                collections,
+                Math.max(1, collections.length * 2)
+        );
+    }
+
     private void growCameras() {
         cameras = Arrays.copyOf(
                 cameras,
@@ -123,6 +146,38 @@ public class World {
                 meshes,
                 Math.max(1, meshes.length * 2)
         );
+    }
+
+    public Collection storeCollection(String name) {
+
+        int index = findNextCollectionIndex();
+
+        if (index == -1) {
+            growCollections();
+            index = findNextCollectionIndex();
+        }
+
+        Collection collection = new Collection(name);
+
+        collections[index] = collection;
+
+        return collection;
+    }
+
+    public Collection storeCollection(String name, Thing[] things, Vector3 coordinates, Vector3 scale, Vector3 rotation) {
+
+        int index = findNextCollectionIndex();
+
+        if (index == -1) {
+            growCollections();
+            index = findNextCollectionIndex();
+        }
+
+        Collection collection = new Collection(name, things, coordinates, scale, rotation);
+
+        collections[index] = collection;
+
+        return collection;
     }
 
     // =========================================================
@@ -184,7 +239,7 @@ public class World {
     // STORE OBJECT / MESH
     // =========================================================
 
-    public Mesh storeObject(String objPath) {
+    public Mesh storeObject(String objPath, String collectionName) {
 
         int index = findNextMeshIndex();
 
@@ -194,8 +249,16 @@ public class World {
         }
 
         try {
-            Mesh mesh = new Object(this, objPath);
+            Mesh mesh = new Object(this, objPath, collectionName);
             mesh.generate();
+
+            if(collectionName.equals("default")) {
+                collections[0].storeThing(mesh);
+            }
+            else {
+                Collection collection = storeCollection(collectionName);
+                collection.storeThing(mesh);
+            }
 
             meshes[index] = mesh;
 
@@ -210,6 +273,16 @@ public class World {
     // =========================================================
     // GETTERS
     // =========================================================
+
+    public int getCollectionIndex(String collectionName) {
+        for(int i = 0; i < collections.length & collections[i] != null; i ++) {
+            if(collections[i].name == collectionName) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     public Mesh getMesh(int index) {
         if (index < 0 || index >= meshes.length) {
@@ -226,41 +299,5 @@ public class World {
         }
 
         return cameras[activeCameraIndex];
-    }
-
-    public int getMeshCount() {
-        int count = 0;
-
-        for (Mesh mesh : meshes) {
-            if (mesh != null) {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    public int getLightCount() {
-        int count = 0;
-
-        for (Light light : lights) {
-            if (light != null) {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    public int getCameraCount() {
-        int count = 0;
-
-        for (Camera camera : cameras) {
-            if (camera != null) {
-                count++;
-            }
-        }
-
-        return count;
     }
 }

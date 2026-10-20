@@ -72,7 +72,7 @@ public class RendererPanel extends JPanel implements Runnable{
         scripts = new Scripts(this);
 
         renderer = new Renderer(this);
-        world = new World(100, 100, 100, this);
+        world = new World(100, 100, 100, 20,this);
 
         audioManager = new AudioManager(10);
 
@@ -117,7 +117,7 @@ public class RendererPanel extends JPanel implements Runnable{
         mouseHandler.isLocked = !keyHandler.ePressed;
 
         renderer.update();
-        world.cameras[world.activeCameraIndex].update();
+        world.getActiveCamera().update();
         myInterface.update();
     }
 

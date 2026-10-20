@@ -1,4 +1,4 @@
-package types.meshes;
+package types.things;
 
 import types.datatypes.Vector3;
 import types.visuals.Texture;
@@ -7,20 +7,10 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class Mesh {
+public class Mesh extends Thing {
 
     // Transform
-    public double x = 0;
-    public double y = 0;
-    public double z = 0;
-
-    public double scaleX = 1;
-    public double scaleY = 1;
-    public double scaleZ = 1;
-
-    public double rotationX = 0;
-    public double rotationY = 0;
-    public double rotationZ = 0;
+    public Vector3 scale = new Vector3(1, 1, 1);
 
     // Rendering properties
     public boolean visible = true;
@@ -63,7 +53,9 @@ public abstract class Mesh {
         geometryRevision++;
     }
 
-    protected abstract void generateGeometry();
+    protected void generateGeometry() {
+
+    }
 
     public void updateTransform() {
         // Transform is applied by Renderer; override if needed.
