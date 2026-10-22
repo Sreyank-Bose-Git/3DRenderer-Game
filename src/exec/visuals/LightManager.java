@@ -33,13 +33,13 @@ public class LightManager {
             double attenuation = 1.0;
 
             if ("directional".equalsIgnoreCase(light.lightType)) {
-                if (light.rotation == null) continue;
+                if (light.actualRotation == null) continue;
 
-                // rotation represents the direction the light travels, so reverse it
+                // actualRotation represents the direction the light travels, so reverse it
                 // to get the direction from the surface toward the light.
-                lx = -light.rotation.x;
-                ly = -light.rotation.y;
-                lz = -light.rotation.z;
+                lx = -light.actualRotation.x;
+                ly = -light.actualRotation.y;
+                lz = -light.actualRotation.z;
 
                 double lengthSquared = lx * lx + ly * ly + lz * lz;
                 if (lengthSquared < EPSILON_SQUARED) continue;
@@ -50,11 +50,11 @@ public class LightManager {
                 lz *= inverseLength;
 
             } else if ("point".equalsIgnoreCase(light.lightType)) {
-                if (light.coordinates == null) continue;
+                if (light.actualCoordinates == null) continue;
 
-                lx = light.coordinates.x - px;
-                ly = light.coordinates.y - py;
-                lz = light.coordinates.z - pz;
+                lx = light.actualCoordinates.x - px;
+                ly = light.actualCoordinates.y - py;
+                lz = light.actualCoordinates.z - pz;
 
                 double distanceSquared = lx * lx + ly * ly + lz * lz;
                 if (distanceSquared < EPSILON_SQUARED || !Double.isFinite(distanceSquared)) continue;

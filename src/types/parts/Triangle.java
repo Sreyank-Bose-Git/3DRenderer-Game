@@ -7,13 +7,13 @@ public class Triangle {
     public int index1, index2, index3;
     public boolean opaque;
 
-    // UV coordinates for vertex 1
+    // UV actualCoordinates for vertex 1
     public double u1, v1;
 
-    // UV coordinates for vertex 2
+    // UV actualCoordinates for vertex 2
     public double u2, v2;
 
-    // UV coordinates for vertex 3
+    // UV actualCoordinates for vertex 3
     public double u3, v3;
 
     // Texture assigned to this triangle

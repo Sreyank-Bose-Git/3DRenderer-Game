@@ -6,7 +6,7 @@ import types.datatypes.Vector2;
 import types.datatypes.Vector3;
 import types.things.Mesh;
 import types.things.Light;
-import types.things.Object;
+import types.things.meshes.Object;
 import types.things.Thing;
 
 import java.util.Arrays;
@@ -58,12 +58,13 @@ public class World {
                 "point",
                 5.0,
                 new Vector3(0, 50, -200),
-                new Vector3(0, 0, 180)
+                new Vector3(0, 0, 180),
+                "IamFat"
         );
 
         storeObject("/types/objects/cube.obj", "IamFat");
 
-        Mesh mesh = getMesh(0);
+        Mesh mesh = meshes[0];
 
         if (mesh != null) {
             mesh.scale.x *= 1000;
@@ -71,6 +72,37 @@ public class World {
             mesh.scale.z *= 1000;
         }
     }
+
+    public void update() {
+
+        // Meshes
+        for(int i = 0; i < meshes.length && meshes[i] != null; i++) {
+
+            meshes[i].actualCoordinates.x = meshes[i].localCoordinates.x + collections[getCollectionIndex(meshes[i].collectionName)].coordinates.x;
+            meshes[i].actualCoordinates.y = meshes[i].localCoordinates.y + collections[getCollectionIndex(meshes[i].collectionName)].coordinates.y;
+            meshes[i].actualCoordinates.z = meshes[i].localCoordinates.z + collections[getCollectionIndex(meshes[i].collectionName)].coordinates.z;
+
+            meshes[i].actualRotation.x = meshes[i].localRotation.x + collections[getCollectionIndex(meshes[i].collectionName)].rotation.x;
+            meshes[i].actualRotation.y = meshes[i].localRotation.y + collections[getCollectionIndex(meshes[i].collectionName)].rotation.y;
+            meshes[i].actualRotation.z = meshes[i].localRotation.z + collections[getCollectionIndex(meshes[i].collectionName)].rotation.z;
+
+        }
+
+        // Lights
+        for(int i = 0; i < lights.length && lights[i] != null; i++) {
+
+            lights[i].actualCoordinates.x = lights[i].localCoordinates.x + collections[getCollectionIndex(lights[i].collectionName)].coordinates.x;
+            lights[i].actualCoordinates.y = lights[i].localCoordinates.y + collections[getCollectionIndex(lights[i].collectionName)].coordinates.y;
+            lights[i].actualCoordinates.z = lights[i].localCoordinates.z + collections[getCollectionIndex(lights[i].collectionName)].coordinates.z;
+
+            lights[i].actualRotation.x = lights[i].localRotation.x + collections[getCollectionIndex(lights[i].collectionName)].rotation.x;
+            lights[i].actualRotation.y = lights[i].localRotation.y + collections[getCollectionIndex(lights[i].collectionName)].rotation.y;
+            lights[i].actualRotation.z = lights[i].localRotation.z + collections[getCollectionIndex(lights[i].collectionName)].rotation.z;
+
+        }
+    }
+
+
 
     // =========================================================
     // FIND AVAILABLE SLOTS
@@ -184,7 +216,7 @@ public class World {
     // STORE CAMERA
     // =========================================================
 
-    public Camera storeCamera(
+    public void storeCamera(
             Vector3 coordinates,
             Vector2 rotation) {
 
@@ -203,18 +235,18 @@ public class World {
 
         cameras[index] = camera;
 
-        return camera;
     }
 
     // =========================================================
     // STORE LIGHT
     // =========================================================
 
-    public Light storeLight(
+    public void storeLight(
             String lightType,
             double lightStrength,
             Vector3 coordinates,
-            Vector3 rotation) {
+            Vector3 rotation,
+            String collectionName) {
 
         int index = findNextLightIndex();
 
@@ -227,19 +259,27 @@ public class World {
                 lightType,
                 lightStrength,
                 coordinates,
-                rotation
+                rotation,
+                collectionName
         );
+
+        if(collectionName.equals("default")) {
+            collections[0].storeThing(light);
+        }
+        else {
+            Collection collection = storeCollection(collectionName);
+            collection.storeThing(light);
+        }
 
         lights[index] = light;
 
-        return light;
     }
 
     // =========================================================
     // STORE OBJECT / MESH
     // =========================================================
 
-    public Mesh storeObject(String objPath, String collectionName) {
+    public void storeObject(String objPath, String collectionName) {
 
         int index = findNextMeshIndex();
 
@@ -262,11 +302,8 @@ public class World {
 
             meshes[index] = mesh;
 
-            return mesh;
-
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
         }
     }
 
@@ -282,22 +319,5 @@ public class World {
         }
 
         return -1;
-    }
-
-    public Mesh getMesh(int index) {
-        if (index < 0 || index >= meshes.length) {
-            return null;
-        }
-
-        return meshes[index];
-    }
-
-    public Camera getActiveCamera() {
-        if (activeCameraIndex < 0
-                || activeCameraIndex >= cameras.length) {
-            return null;
-        }
-
-        return cameras[activeCameraIndex];
     }
 }

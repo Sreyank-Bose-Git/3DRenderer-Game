@@ -64,7 +64,7 @@ public class Texture {
         }
     }
 
-    // UV coordinates range from 0.0 to 1.0.
+    // UV actualCoordinates range from 0.0 to 1.0.
     public Color sample(double u, double v) {
 
         u = Math.clamp(u, 0.0, 1.0);

@@ -66,7 +66,7 @@ public class Renderer {
         }
 
         World world = rendererPanel.world;
-        Camera camera = world.getActiveCamera();
+        Camera camera = world.cameras[world.activeCameraIndex];
         if (camera == null || camera.coordinates == null || camera.rotation == null
                 || rendererPanel.scripts == null) {
             drawBlackScreen(g2D);
@@ -84,7 +84,7 @@ public class Renderer {
             });
 
             for (Mesh mesh : world.meshes) {
-                if (mesh == null || !mesh.isVisible() || !mesh.isGenerated()) continue;
+                if (mesh == null || !mesh.visible || !mesh.generated) continue;
 
                 MeshRenderData data = getRenderData(mesh);
                 updateTransformedVertices(mesh, data);
@@ -124,9 +124,9 @@ public class Renderer {
 
     private MeshRenderData getRenderData(Mesh mesh) {
         MeshRenderData data = meshCache.get(mesh);
-        int vertexCount = mesh.getVertexCount();
-        int edgeCount = mesh.getEdgeCount();
-        int triangleCount = mesh.getTriangleCount();
+        int vertexCount = mesh.vertices.size();
+        int edgeCount = mesh.edges.size();
+        int triangleCount = mesh.triangles.size();
 
         if (data != null && data.revision == mesh.geometryRevision
                 && data.vertices.length == vertexCount
@@ -134,9 +134,9 @@ public class Renderer {
             return data;
         }
 
-        var meshVertices = mesh.getVertices();
-        var meshEdges = mesh.getEdges();
-        var meshTriangles = mesh.getTriangles();
+        var meshVertices = mesh.vertices;
+        var meshEdges = mesh.edges;
+        var meshTriangles = mesh.triangles;
 
         Vertex[] vertices = new Vertex[meshVertices.size()];
         for (int i = 0; i < vertices.length; i++) {
@@ -161,14 +161,14 @@ public class Renderer {
                     source.u0, source.v0, source.u1, source.v1, source.u2, source.v2);
         }
 
-        data = new MeshRenderData(vertices, lines, triangles, mesh.geometryRevision);
+        data = new MeshRenderData(vertices, lines, triangles, mesh.collectionName, mesh.geometryRevision);
         meshCache.put(mesh, data);
         return data;
     }
 
     private void updateTransformedVertices(Mesh mesh, MeshRenderData data) {
         for (int i = 0; i < data.vertices.length; i++) {
-            Vector3 local = mesh.getVertexData(i).position;
+            Vector3 local = mesh.vertices.get(i).position;
             Vector3 out = data.vertices[i].coordinates;
             transformInto(local, mesh, out);
         }
@@ -176,18 +176,19 @@ public class Renderer {
 
     /** Scale, rotate X then Y then Z, then translate, without per-frame allocations. */
     private void transformInto(Vector3 vertex, Mesh mesh, Vector3 out) {
-        double x = vertex.x * mesh.scale.x;
+
+        double x = (vertex.x * mesh.scale.x);
         double y = vertex.y * mesh.scale.y;
         double z = vertex.z * mesh.scale.z;
 
-        double angle = Math.toRadians(mesh.rotation.x);
+        double angle = Math.toRadians(mesh.actualRotation.x);
         double cos = Math.cos(angle), sin = Math.sin(angle);
         double ny = y * cos - z * sin;
         double nz = y * sin + z * cos;
         y = ny;
         z = nz;
 
-        angle = Math.toRadians(mesh.rotation.y);
+        angle = Math.toRadians(mesh.actualRotation.y);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
         double nx = x * cos + z * sin;
@@ -195,7 +196,7 @@ public class Renderer {
         x = nx;
         z = nz;
 
-        angle = Math.toRadians(mesh.rotation.z);
+        angle = Math.toRadians(mesh.actualRotation.z);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
         nx = x * cos - y * sin;
@@ -203,9 +204,9 @@ public class Renderer {
         x = nx;
         y = ny;
 
-        out.x = x + mesh.coordinates.x;
-        out.y = y + mesh.coordinates.y;
-        out.z = z + mesh.coordinates.z;
+        out.x = x + mesh.actualCoordinates.x;
+        out.y = y + mesh.actualCoordinates.y;
+        out.z = z + mesh.actualCoordinates.z;
     }
 
     private void drawBlackScreen(Graphics2D g2D) {
@@ -217,12 +218,14 @@ public class Renderer {
         final Vertex[] vertices;
         final Line[] lines;
         final Triangle[] triangles;
+        final String collectionName;
         final long revision;
 
-        MeshRenderData(Vertex[] vertices, Line[] lines, Triangle[] triangles, long revision) {
+        MeshRenderData(Vertex[] vertices, Line[] lines, Triangle[] triangles, String collectionName, long revision) {
             this.vertices = vertices;
             this.lines = lines;
             this.triangles = triangles;
+            this.collectionName = collectionName;
             this.revision = revision;
         }
     }

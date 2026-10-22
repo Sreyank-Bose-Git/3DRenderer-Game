@@ -116,8 +116,9 @@ public class RendererPanel extends JPanel implements Runnable{
 
         mouseHandler.isLocked = !keyHandler.ePressed;
 
+        world.update();
         renderer.update();
-        world.getActiveCamera().update();
+        world.cameras[world.activeCameraIndex].update();
         myInterface.update();
     }
 

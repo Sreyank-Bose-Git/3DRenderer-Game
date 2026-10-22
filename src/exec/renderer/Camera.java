@@ -204,7 +204,7 @@ public class Camera {
      * Tests the player's cuboid against every triangle belonging
      * to every generated mesh in the world.
      *
-     * Triangle vertices are transformed into world coordinates
+     * Triangle vertices are transformed into world actualCoordinates
      * using the same transform order as Renderer:
      * scale, rotate X, rotate Y, rotate Z, translate.
      */
@@ -222,15 +222,15 @@ public class Camera {
                 continue;
             }
 
-            if (!mesh.isGenerated() || mesh.isDisposed()) {
+            if (!mesh.generated || mesh.disposed) {
                 continue;
             }
 
-            int triangleCount = mesh.getTriangleCount();
+            int triangleCount = mesh.triangles.size();
 
             for (int i = 0; i < triangleCount; i++) {
 
-                TriangleData triangle = mesh.getTriangleData(i);
+                TriangleData triangle = mesh.triangles.get(i);
 
                 if (triangle == null) {
                     continue;
@@ -240,20 +240,20 @@ public class Camera {
                 if (triangle.vertex1 < 0
                         || triangle.vertex2 < 0
                         || triangle.vertex3 < 0
-                        || triangle.vertex1 >= mesh.getVertexCount()
-                        || triangle.vertex2 >= mesh.getVertexCount()
-                        || triangle.vertex3 >= mesh.getVertexCount()) {
+                        || triangle.vertex1 >= mesh.vertices.size()
+                        || triangle.vertex2 >= mesh.vertices.size()
+                        || triangle.vertex3 >= mesh.vertices.size()) {
                     continue;
                 }
 
                 Vector3 localA =
-                        mesh.getVertexData(triangle.vertex1).position;
+                        mesh.vertices.get(triangle.vertex1).position;
 
                 Vector3 localB =
-                        mesh.getVertexData(triangle.vertex2).position;
+                        mesh.vertices.get(triangle.vertex2).position;
 
                 Vector3 localC =
-                        mesh.getVertexData(triangle.vertex3).position;
+                        mesh.vertices.get(triangle.vertex3).position;
 
                 transformToWorld(localA, mesh, collisionA);
                 transformToWorld(localB, mesh, collisionB);
@@ -294,7 +294,7 @@ public class Camera {
         double z = vertex.z * mesh.scale.z;
 
         // Rotation X.
-        double angle = Math.toRadians(mesh.rotation.x);
+        double angle = Math.toRadians(mesh.actualRotation.x);
         double cos = Math.cos(angle);
         double sin = Math.sin(angle);
 
@@ -305,7 +305,7 @@ public class Camera {
         z = nextZ;
 
         // Rotation Y.
-        angle = Math.toRadians(mesh.rotation.y);
+        angle = Math.toRadians(mesh.actualRotation.y);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
 
@@ -316,7 +316,7 @@ public class Camera {
         z = nextZ;
 
         // Rotation Z.
-        angle = Math.toRadians(mesh.rotation.z);
+        angle = Math.toRadians(mesh.actualRotation.z);
         cos = Math.cos(angle);
         sin = Math.sin(angle);
 
@@ -327,9 +327,9 @@ public class Camera {
         y = nextY;
 
         // Translation.
-        out.x = x + mesh.coordinates.x;
-        out.y = y + mesh.coordinates.y;
-        out.z = z + mesh.coordinates.z;
+        out.x = x + mesh.actualCoordinates.x;
+        out.y = y + mesh.actualCoordinates.y;
+        out.z = z + mesh.actualCoordinates.z;
     }
 
     public void playRotateHandler() {

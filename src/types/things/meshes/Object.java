@@ -1,9 +1,10 @@
-package types.things;
+package types.things.meshes;
 
 import types.datatypes.Vector3;
 import exec.file.MaterialParser;
 import exec.file.ObjectParser;
 import exec.renderer.World;
+import types.things.Mesh;
 import types.visuals.Texture;
 
 import java.io.IOException;
@@ -14,7 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class Object extends Mesh{
+public class Object extends Mesh {
 
     private final World world;
     private final ObjectParser.Data data;
@@ -31,7 +32,7 @@ public class Object extends Mesh{
             new LinkedHashMap<>();
 
     // Cache textures so the same material image is not loaded repeatedly.
-    private final Map<String, Texture> textureCache = new HashMap<>();
+    public final Map<String, Texture> textureCache = new HashMap<>();
 
     public Object(World world, String objPath, String collectionName) throws IOException {
         this.world = world;
@@ -76,13 +77,14 @@ public class Object extends Mesh{
 
         int vertexCount = data.vertices.size();
         int triangleCount = 0;
+        int edgeCount = 0;
 
         center = calculateCenter();
 
         System.out.println("OBJ vertices: " + vertexCount);
         System.out.println("OBJ faces: " + data.faces.size());
         System.out.println("OBJ explicit edges: " + data.edges.size());
-        System.out.println("UV coordinates: " + data.uvs.size());
+        System.out.println("UV actualCoordinates: " + data.uvs.size());
         System.out.println("Materials loaded: " + materials.keySet());
 
         // 1. Store vertices in this mesh's local coordinate system.
@@ -93,7 +95,7 @@ public class Object extends Mesh{
                     v[2] - center[2]
             );
 
-            addVertex(position, vertexColor, vertexRadius, opaque);
+            vertices.add(new VertexData(position, vertexColor, vertexRadius, opaque));
         }
 
         // Use a set to avoid storing duplicate edges.
@@ -129,16 +131,14 @@ public class Object extends Mesh{
                 double[] uv1 = getUV(b.uvIndex);
                 double[] uv2 = getUV(c.uvIndex);
 
-                addTriangle(
-                        first.vertexIndex,
+                triangles.add(new TriangleData(first.vertexIndex,
                         b.vertexIndex,
                         c.vertexIndex,
                         faceTexture,
                         faceOpaque,
                         uv0[0], uv0[1],
                         uv1[0], uv1[1],
-                        uv2[0], uv2[1]
-                );
+                        uv2[0], uv2[1]));
 
                 triangleCount++;
             }
@@ -155,6 +155,8 @@ public class Object extends Mesh{
 
                     uniqueEdges.add(edgeKey(a, b));
                 }
+
+                edgeCount++;
             }
         }
 
@@ -170,12 +172,12 @@ public class Object extends Mesh{
             int a = (int) (key >>> 32);
             int b = (int) key;
 
-            addEdge(a, b, edgeColor, edgeThickness, opaque);
+            edges.add(new EdgeData(a, b, edgeColor, edgeThickness, opaque));
         }
 
-        System.out.println("Generated mesh vertices: " + getVertexCount());
+        System.out.println("Generated mesh vertices: " + vertexCount);
         System.out.println("Generated mesh triangles: " + triangleCount);
-        System.out.println("Generated unique edges: " + getEdgeCount());
+        System.out.println("Generated unique edges: " + edgeCount);
     }
 
     private Texture getMaterialTexture(
@@ -258,7 +260,7 @@ public class Object extends Mesh{
 
     /**
      * Geometry remains in local space. The renderer should apply this
-     * mesh's position, scale and rotation when drawing it.
+     * mesh's position, scale and actualRotation when drawing it.
      */
     @Override
     public void updateTransform() {

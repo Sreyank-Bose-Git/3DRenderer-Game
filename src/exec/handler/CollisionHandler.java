@@ -31,7 +31,7 @@ public class CollisionHandler {
         double hy = height / 2.0;
         double hz = length / 2.0;
 
-        // Translate triangle vertices into cuboid-centered coordinates.
+        // Translate triangle vertices into cuboid-centered actualCoordinates.
         double[][] v = {
                 {a.x - pos.x, a.y - pos.y, a.z - pos.z},
                 {b.x - pos.x, b.y - pos.y, b.z - pos.z},

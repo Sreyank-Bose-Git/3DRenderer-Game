@@ -815,7 +815,7 @@ public class Scripts {
                 continue;
             }
 
-            // Perspective-correct texture coordinates.
+            // Perspective-correct texture actualCoordinates.
             double u = (left[3] + (right[3] - left[3]) * t) / invZ;
             double v = (left[4] + (right[4] - left[4]) * t) / invZ;
 

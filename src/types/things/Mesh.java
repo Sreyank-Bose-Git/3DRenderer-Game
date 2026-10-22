@@ -24,13 +24,13 @@ public class Mesh extends Thing {
     public float edgeThickness = 1.0f;
 
     // Geometry owned by this mesh
-    protected final List<VertexData> vertices = new ArrayList<>();
-    protected final List<EdgeData> edges = new ArrayList<>();
-    protected final List<TriangleData> triangles = new ArrayList<>();
+    public final List<VertexData> vertices = new ArrayList<>();
+    public final List<EdgeData> edges = new ArrayList<>();
+    public final List<TriangleData> triangles = new ArrayList<>();
 
     // Lifecycle
-    protected boolean generated = false;
-    protected boolean disposed = false;
+    public boolean generated = false;
+    public boolean disposed = false;
 
     /** Incremented whenever mesh geometry is regenerated or disposed. */
     public long geometryRevision = 0;
@@ -59,99 +59,6 @@ public class Mesh extends Thing {
 
     public void updateTransform() {
         // Transform is applied by Renderer; override if needed.
-    }
-
-    // Geometry creation
-    protected int addVertex(Vector3 position) {
-        vertices.add(new VertexData(position, vertexColor, vertexRadius, opaque));
-        return vertices.size() - 1;
-    }
-
-    protected int addVertex(Vector3 position, Color color, int radius, boolean opaque) {
-        vertices.add(new VertexData(position, color, radius, opaque));
-        return vertices.size() - 1;
-    }
-
-    protected void addEdge(int vertex1, int vertex2) {
-        addEdge(vertex1, vertex2, edgeColor, edgeThickness, opaque);
-    }
-
-    protected void addEdge(int vertex1, int vertex2, Color color,
-                           float thickness, boolean opaque) {
-        checkVertexIndex(vertex1);
-        checkVertexIndex(vertex2);
-        edges.add(new EdgeData(vertex1, vertex2, color, thickness, opaque));
-    }
-
-    protected void addTriangle(int vertex1, int vertex2, int vertex3,
-                               Texture texture, boolean opaque,
-                               double u0, double v0,
-                               double u1, double v1,
-                               double u2, double v2) {
-        checkVertexIndex(vertex1);
-        checkVertexIndex(vertex2);
-        checkVertexIndex(vertex3);
-        triangles.add(new TriangleData(vertex1, vertex2, vertex3, texture, opaque,
-                u0, v0, u1, v1, u2, v2));
-    }
-
-    private void checkVertexIndex(int index) {
-        if (index < 0 || index >= vertices.size()) {
-            throw new IndexOutOfBoundsException("Invalid mesh vertex index: " + index);
-        }
-    }
-
-    // Geometry access
-    /** Indexed access avoids copying the whole vertex list during rendering. */
-    public VertexData getVertexData(int index) {
-        return vertices.get(index);
-    }
-
-    public List<VertexData> getVertices() {
-        return List.copyOf(vertices);
-    }
-
-    public List<EdgeData> getEdges() {
-        return List.copyOf(edges);
-    }
-
-    public List<TriangleData> getTriangles() {
-        return List.copyOf(triangles);
-    }
-
-
-    public TriangleData getTriangleData(int index) {
-        return triangles.get(index);
-    }
-
-
-    public int getVertexCount() {
-        return vertices.size();
-    }
-
-    public int getEdgeCount() {
-        return edges.size();
-    }
-
-    public int getTriangleCount() {
-        return triangles.size();
-    }
-
-    // State
-    public boolean isGenerated() {
-        return generated;
-    }
-
-    public boolean isDisposed() {
-        return disposed;
-    }
-
-    public boolean isVisible() {
-        return visible && !disposed;
-    }
-
-    public void setVisible(boolean visible) {
-        this.visible = visible;
     }
 
     // Cleanup
