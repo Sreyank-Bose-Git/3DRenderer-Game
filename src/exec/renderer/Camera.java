@@ -6,48 +6,52 @@ import types.datatypes.Vector2;
 import types.datatypes.Vector3;
 import types.things.Mesh;
 import types.things.Mesh.TriangleData;
+import types.things.Thing;
 
-public class Camera {
+public class Camera extends Thing {
 
-    public Vector3 coordinates;
-    public Vector2 rotation;
+    public Vector3 tempCoords;
 
-    private Vector3 tempCoords;
+    public double maxClimbHeight = 5.0;
+    public double climbStep = 1.0;
 
-    private double maxClimbHeight = 5.0;
-    private double climbStep = 1.0;
+    public double velocity = 50;
+    public double speed;
 
-    private double velocity = 50;
-    private double speed;
+    public double jumpStrength = 40;
 
-    private double jumpStrength = 40;
+    public int gravityOn = 1;
 
-    private int gravityOn = 1;
+    public double gravity = 150 * gravityOn;
+    public double gravityAcceleration = 50 * gravityOn;
+    public boolean onGround = false;
+    public double maxFallPerFrame = 10 * gravityOn;
 
-    private double gravity = 150 * gravityOn;
-    private double gravityAcceleration = 50 * gravityOn;
-    private boolean onGround = false;
-    private double maxFallPerFrame = 10 * gravityOn;
-
-    private double playerWidth = 5;
-    private double playerHeight = 20;
-    private double playerLength = 5;
-
-    private final RendererPanel rendererPanel;
+    public double playerWidth = 5;
+    public double playerHeight = 20;
+    public double playerLength = 5;
 
     // Reusable collision vertices to reduce allocations.
-    private final Vector3 collisionA = new Vector3(0, 0, 0);
-    private final Vector3 collisionB = new Vector3(0, 0, 0);
-    private final Vector3 collisionC = new Vector3(0, 0, 0);
+    public final Vector3 collisionA = new Vector3(0, 0, 0);
+    public final Vector3 collisionB = new Vector3(0, 0, 0);
+    public final Vector3 collisionC = new Vector3(0, 0, 0);
+
+    private final RendererPanel rendererPanel;
 
     public Camera(
             RendererPanel rendererPanel,
             Vector3 coordinates,
-            Vector2 rotation
+            Vector2 rotation,
+            String collectionName
     ) {
+        this.collectionName = collectionName;
+
         this.rendererPanel = rendererPanel;
-        this.coordinates = coordinates;
-        this.rotation = rotation;
+        this.localCoordinates = coordinates;
+
+        this.localRotation.x = rotation.x;
+        this.localRotation.y = rotation.y;
+
         this.tempCoords = coordinates;
     }
 
@@ -63,16 +67,16 @@ public class Camera {
         double timeStep =
                 rendererPanel.frameInterval / 1_000_000_000.0;
 
-        double rY = Math.toRadians(rotation.y);
+        double rY = Math.toRadians(localRotation.y);
         double sinY = Math.sin(rY);
         double cosY = Math.cos(rY);
 
         speed = velocity * timeStep;
 
         tempCoords = new Vector3(
-                coordinates.x,
-                coordinates.y,
-                coordinates.z
+                localCoordinates.x,
+                localCoordinates.y,
+                localCoordinates.z
         );
 
         // 1. Calculate horizontal movement.
@@ -126,9 +130,9 @@ public class Camera {
 
         // 4. Horizontal movement and step climbing.
         Vector3 horizontalCoords = new Vector3(
-                coordinates.x + moveX,
-                coordinates.y,
-                coordinates.z + moveZ
+                actualCoordinates.x + moveX,
+                actualCoordinates.y,
+                actualCoordinates.z + moveZ
         );
 
         boolean horizontalBlocked =
@@ -148,7 +152,7 @@ public class Camera {
 
                     Vector3 candidate = new Vector3(
                             horizontalCoords.x,
-                            coordinates.y + step,
+                            actualCoordinates.y + step,
                             horizontalCoords.z
                     );
 
@@ -166,9 +170,9 @@ public class Camera {
             }
 
             if (!climbed) {
-                horizontalCoords.x = coordinates.x;
-                horizontalCoords.z = coordinates.z;
-                horizontalCoords.y = coordinates.y;
+                horizontalCoords.x = localCoordinates.x;
+                horizontalCoords.z = localCoordinates.z;
+                horizontalCoords.y = localCoordinates.y;
             }
         }
 
@@ -184,41 +188,41 @@ public class Camera {
 
             // Downward collision: land on the ground.
             if (gravity >= 0) {
-                tempCoords.y = coordinates.y;
+                tempCoords.y = localCoordinates.y;
                 gravity = 0;
                 onGround = true;
             } else {
                 // Upward collision: hit a ceiling.
-                tempCoords.y = coordinates.y;
+                tempCoords.y = localCoordinates.y;
                 gravity = 0;
             }
         }
 
         // 6. Apply the final position.
-        coordinates.x = tempCoords.x;
-        coordinates.y = tempCoords.y;
-        coordinates.z = tempCoords.z;
+        localCoordinates.x = tempCoords.x;
+        localCoordinates.y = tempCoords.y;
+        localCoordinates.z = tempCoords.z;
     }
 
     /**
      * Tests the player's cuboid against every triangle belonging
      * to every generated mesh in the world.
      *
-     * Triangle vertices are transformed into world actualCoordinates
+     * Triangle vertices are transformed into world localCoordinates
      * using the same transform order as Renderer:
      * scale, rotate X, rotate Y, rotate Z, translate.
      */
     private boolean collidesAt(Vector3 playerPosition, String axis) {
 
-        Mesh[] meshes = rendererPanel.world.meshes;
+        Thing[] things = rendererPanel.world.things;
 
-        if (meshes == null) {
+        if (things == null) {
             return false;
         }
 
-        for (Mesh mesh : meshes) {
+        for (Thing thing : things) {
 
-            if (mesh == null) {
+            if (!(thing instanceof Mesh mesh)) {
                 continue;
             }
 
@@ -226,17 +230,12 @@ public class Camera {
                 continue;
             }
 
-            int triangleCount = mesh.triangles.size();
-
-            for (int i = 0; i < triangleCount; i++) {
-
-                TriangleData triangle = mesh.triangles.get(i);
+            for (TriangleData triangle : mesh.triangles) {
 
                 if (triangle == null) {
                     continue;
                 }
 
-                // Skip malformed triangle indices.
                 if (triangle.vertex1 < 0
                         || triangle.vertex2 < 0
                         || triangle.vertex3 < 0
@@ -248,10 +247,8 @@ public class Camera {
 
                 Vector3 localA =
                         mesh.vertices.get(triangle.vertex1).position;
-
                 Vector3 localB =
                         mesh.vertices.get(triangle.vertex2).position;
-
                 Vector3 localC =
                         mesh.vertices.get(triangle.vertex3).position;
 
@@ -259,17 +256,15 @@ public class Camera {
                 transformToWorld(localB, mesh, collisionB);
                 transformToWorld(localC, mesh, collisionC);
 
-                if (rendererPanel.collisionHandler
-                        .checkCameraTriangleCollision(
-                                collisionA,
-                                collisionB,
-                                collisionC,
-                                axis,
-                                playerPosition,
-                                playerLength,
-                                playerWidth,
-                                playerHeight
-                        )) {
+                if (rendererPanel.collisionHandler.checkCameraTriangleCollision(
+                        collisionA,
+                        collisionB,
+                        collisionC,
+                        axis,
+                        playerPosition,
+                        playerLength,
+                        playerWidth,
+                        playerHeight)) {
                     return true;
                 }
             }
@@ -289,9 +284,9 @@ public class Camera {
             Vector3 out
     ) {
 
-        double x = vertex.x * mesh.scale.x;
-        double y = vertex.y * mesh.scale.y;
-        double z = vertex.z * mesh.scale.z;
+        double x = vertex.x * mesh.actualScale.x;
+        double y = vertex.y * mesh.actualScale.y;
+        double z = vertex.z * mesh.actualScale.z;
 
         // Rotation X.
         double angle = Math.toRadians(mesh.actualRotation.x);
@@ -336,26 +331,26 @@ public class Camera {
 
         if (rendererPanel.mouseHandler.isLocked) {
 
-            rotation.y += rendererPanel.mouseHandler.deltaYaw;
-            rotation.x += rendererPanel.mouseHandler.deltaPitch;
+            localRotation.y += rendererPanel.mouseHandler.deltaYaw;
+            localRotation.x += rendererPanel.mouseHandler.deltaPitch;
 
             rendererPanel.mouseHandler.deltaYaw = 0;
             rendererPanel.mouseHandler.deltaPitch = 0;
 
             // Clamp pitch to prevent flipping.
-            if (rotation.x > 89.0) {
-                rotation.x = 89.0;
+            if (localRotation.x > 89.0) {
+                localRotation.x = 89.0;
             }
 
-            if (rotation.x < -89.0) {
-                rotation.x = -89.0;
+            if (localRotation.x < -89.0) {
+                localRotation.x = -89.0;
             }
 
             // Wrap yaw.
-            rotation.y %= 360.0;
+            localRotation.y %= 360.0;
 
-            if (rotation.y < 0) {
-                rotation.y += 360.0;
+            if (localRotation.y < 0) {
+                localRotation.y += 360.0;
             }
         }
     }

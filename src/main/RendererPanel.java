@@ -14,7 +14,7 @@ import java.awt.*;
 
 public class RendererPanel extends JPanel implements Runnable{
 
-    public final int resolution = 2; // less than or equal to 16
+    public final int resolution = 1; // less than or equal to 16
 
     public final int singlePixelSize = 16 / resolution;
 
@@ -72,7 +72,7 @@ public class RendererPanel extends JPanel implements Runnable{
         scripts = new Scripts(this);
 
         renderer = new Renderer(this);
-        world = new World(100, 100, 100, 20,this);
+        world = new World(100, 100, this);
 
         audioManager = new AudioManager(10);
 
@@ -118,7 +118,7 @@ public class RendererPanel extends JPanel implements Runnable{
 
         world.update();
         renderer.update();
-        world.cameras[world.activeCameraIndex].update();
+        world.things[world.activeCameraIndex].update();
         myInterface.update();
     }
 

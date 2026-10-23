@@ -1,6 +1,7 @@
 package exec.visuals;
 
 import types.things.Light;
+import types.things.Thing;
 
 import java.awt.Color;
 
@@ -17,13 +18,18 @@ public class LightManager {
     public double calculateIntensity(
             double px, double py, double pz,
             double nx, double ny, double nz,
-            Light[] lights) {
+            Thing[] things) {
 
         double intensity = Math.max(0.0, ambientStrength);
-        if (lights == null) return clampIntensity(intensity);
+        if (things == null) return clampIntensity(intensity);
 
-        for (Light light : lights) {
-            if (light == null || light.lightStrength <= 0.0 || !Double.isFinite(light.lightStrength)) {
+        for (Thing thing : things) {
+            if (!(thing instanceof Light light)) {
+                continue;
+            }
+
+            if (light.lightStrength <= 0.0
+                    || !Double.isFinite(light.lightStrength)) {
                 continue;
             }
 
@@ -35,8 +41,6 @@ public class LightManager {
             if ("directional".equalsIgnoreCase(light.lightType)) {
                 if (light.actualRotation == null) continue;
 
-                // actualRotation represents the direction the light travels, so reverse it
-                // to get the direction from the surface toward the light.
                 lx = -light.actualRotation.x;
                 ly = -light.actualRotation.y;
                 lz = -light.actualRotation.z;
@@ -57,16 +61,21 @@ public class LightManager {
                 lz = light.actualCoordinates.z - pz;
 
                 double distanceSquared = lx * lx + ly * ly + lz * lz;
-                if (distanceSquared < EPSILON_SQUARED || !Double.isFinite(distanceSquared)) continue;
+
+                if (distanceSquared < EPSILON_SQUARED
+                        || !Double.isFinite(distanceSquared)) {
+                    continue;
+                }
 
                 double distance = Math.sqrt(distanceSquared);
                 double inverseDistance = 1.0 / distance;
+
                 lx *= inverseDistance;
                 ly *= inverseDistance;
                 lz *= inverseDistance;
 
-                // Smooth attenuation: close lights remain bright; distant lights fade.
-                attenuation = 1.0 / (1.0 + 0.02 * distance + 0.001 * distanceSquared);
+                attenuation = 1.0 /
+                        (1.0 + 0.02 * distance + 0.001 * distanceSquared);
 
             } else {
                 continue;
@@ -75,7 +84,6 @@ public class LightManager {
             double diffuse = Math.max(0.0, nx * lx + ny * ly + nz * lz);
             intensity += light.lightStrength * diffuse * attenuation;
 
-            // Once fully saturated, more lights cannot affect the output.
             if (intensity >= 1.0) return 1.0;
         }
 

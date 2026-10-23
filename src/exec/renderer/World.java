@@ -13,9 +13,7 @@ import java.util.Arrays;
 
 public class World {
 
-    public Mesh[] meshes;
-    public Light[] lights;
-    public Camera[] cameras;
+    public Thing[] things;
 
     public Collection[] collections;
 
@@ -23,15 +21,11 @@ public class World {
     public RendererPanel rendererPanel;
 
     public World(
-            int meshesSize,
-            int lightsSize,
-            int camerasSize,
+            int thingsSize,
             int collectionsSize,
             RendererPanel rendererPanel) {
 
-        meshes = new Mesh[Math.max(1, meshesSize)];
-        lights = new Light[Math.max(1, lightsSize)];
-        cameras = new Camera[Math.max(1, camerasSize)];
+        things = new Thing[thingsSize];
         collections = new Collection[collectionsSize];
 
         storeCollection("default");
@@ -48,7 +42,7 @@ public class World {
     private void createBasicWorld() {
 
         storeCamera(
-                new Vector3(0, 50, -200),
+                new Vector3(0, 500, -200),
                 new Vector2(0, 0)
         );
 
@@ -59,50 +53,57 @@ public class World {
                 5.0,
                 new Vector3(0, 50, -200),
                 new Vector3(0, 0, 180),
-                "IamFat"
+                "default"
         );
 
-        storeObject("/types/objects/cube.obj", "IamFat");
+        storeObject("/types/objects/cube.obj", "default");
 
-        Mesh mesh = meshes[0];
+        storeObject("/types/objects/cube.obj", "default");
+
+        Thing mesh = things[2];
 
         if (mesh != null) {
-            mesh.scale.x *= 1000;
-            mesh.scale.y *= 10;
-            mesh.scale.z *= 1000;
+            mesh.localScale.x *= 1000;
+            mesh.localScale.y *= 10;
+            mesh.localScale.z *= 1000;
+        }
+
+        mesh = things[3];
+
+        if (mesh != null) {
+            mesh.localScale.x *= 10;
+            mesh.localScale.y *= 10;
+            mesh.localScale.z *= 10;
+
+            mesh.localCoordinates.y = 10;
+            mesh.localCoordinates.z = -50;
         }
     }
 
     public void update() {
 
-        // Meshes
-        for(int i = 0; i < meshes.length && meshes[i] != null; i++) {
+        collectionInclusion();
 
-            meshes[i].actualCoordinates.x = meshes[i].localCoordinates.x + collections[getCollectionIndex(meshes[i].collectionName)].coordinates.x;
-            meshes[i].actualCoordinates.y = meshes[i].localCoordinates.y + collections[getCollectionIndex(meshes[i].collectionName)].coordinates.y;
-            meshes[i].actualCoordinates.z = meshes[i].localCoordinates.z + collections[getCollectionIndex(meshes[i].collectionName)].coordinates.z;
 
-            meshes[i].actualRotation.x = meshes[i].localRotation.x + collections[getCollectionIndex(meshes[i].collectionName)].rotation.x;
-            meshes[i].actualRotation.y = meshes[i].localRotation.y + collections[getCollectionIndex(meshes[i].collectionName)].rotation.y;
-            meshes[i].actualRotation.z = meshes[i].localRotation.z + collections[getCollectionIndex(meshes[i].collectionName)].rotation.z;
-
-        }
-
-        // Lights
-        for(int i = 0; i < lights.length && lights[i] != null; i++) {
-
-            lights[i].actualCoordinates.x = lights[i].localCoordinates.x + collections[getCollectionIndex(lights[i].collectionName)].coordinates.x;
-            lights[i].actualCoordinates.y = lights[i].localCoordinates.y + collections[getCollectionIndex(lights[i].collectionName)].coordinates.y;
-            lights[i].actualCoordinates.z = lights[i].localCoordinates.z + collections[getCollectionIndex(lights[i].collectionName)].coordinates.z;
-
-            lights[i].actualRotation.x = lights[i].localRotation.x + collections[getCollectionIndex(lights[i].collectionName)].rotation.x;
-            lights[i].actualRotation.y = lights[i].localRotation.y + collections[getCollectionIndex(lights[i].collectionName)].rotation.y;
-            lights[i].actualRotation.z = lights[i].localRotation.z + collections[getCollectionIndex(lights[i].collectionName)].rotation.z;
-
-        }
     }
 
+    void collectionInclusion() {
+        // things
+        for(int i = 0; i < things.length && things[i] != null; i++) {
 
+            things[i].actualCoordinates.x = things[i].localCoordinates.x + collections[getCollectionIndex(things[i].collectionName)].coordinates.x;
+            things[i].actualCoordinates.y = things[i].localCoordinates.y + collections[getCollectionIndex(things[i].collectionName)].coordinates.y;
+            things[i].actualCoordinates.z = things[i].localCoordinates.z + collections[getCollectionIndex(things[i].collectionName)].coordinates.z;
+
+            things[i].actualRotation.x = things[i].localRotation.x + collections[getCollectionIndex(things[i].collectionName)].rotation.x;
+            things[i].actualRotation.y = things[i].localRotation.y + collections[getCollectionIndex(things[i].collectionName)].rotation.y;
+            things[i].actualRotation.z = things[i].localRotation.z + collections[getCollectionIndex(things[i].collectionName)].rotation.z;
+
+            things[i].actualScale.x = things[i].localScale.x + collections[getCollectionIndex(things[i].collectionName)].scale.x;
+            things[i].actualScale.y = things[i].localScale.y + collections[getCollectionIndex(things[i].collectionName)].scale.y;
+            things[i].actualScale.z = things[i].localScale.z + collections[getCollectionIndex(things[i].collectionName)].scale.z;
+        }
+    }
 
     // =========================================================
     // FIND AVAILABLE SLOTS
@@ -118,29 +119,9 @@ public class World {
         return -1;
     }
 
-    private int findNextCameraIndex() {
-        for (int i = 0; i < cameras.length; i++) {
-            if (cameras[i] == null) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private int findNextLightIndex() {
-        for (int i = 0; i < lights.length; i++) {
-            if (lights[i] == null) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private int findNextMeshIndex() {
-        for (int i = 0; i < meshes.length; i++) {
-            if (meshes[i] == null) {
+    private int findNextThingIndex() {
+        for (int i = 0; i < things.length; i++) {
+            if (things[i] == null) {
                 return i;
             }
         }
@@ -159,24 +140,10 @@ public class World {
         );
     }
 
-    private void growCameras() {
-        cameras = Arrays.copyOf(
-                cameras,
-                Math.max(1, cameras.length * 2)
-        );
-    }
-
-    private void growLights() {
-        lights = Arrays.copyOf(
-                lights,
-                Math.max(1, lights.length * 2)
-        );
-    }
-
-    private void growMeshes() {
-        meshes = Arrays.copyOf(
-                meshes,
-                Math.max(1, meshes.length * 2)
+    private void growThings() {
+        things = Arrays.copyOf(
+                things,
+                Math.max(1, things.length * 2)
         );
     }
 
@@ -220,20 +187,21 @@ public class World {
             Vector3 coordinates,
             Vector2 rotation) {
 
-        int index = findNextCameraIndex();
+        int index = findNextThingIndex();
 
         if (index == -1) {
-            growCameras();
-            index = findNextCameraIndex();
+            growThings();
+            index = findNextThingIndex();
         }
 
         Camera camera = new Camera(
                 rendererPanel,
                 coordinates,
-                rotation
+                rotation,
+                "default"
         );
 
-        cameras[index] = camera;
+        things[index] = camera;
 
     }
 
@@ -243,21 +211,21 @@ public class World {
 
     public void storeLight(
             String lightType,
-            double lightStrength,
+            double thingstrength,
             Vector3 coordinates,
             Vector3 rotation,
             String collectionName) {
 
-        int index = findNextLightIndex();
+        int index = findNextThingIndex();
 
         if (index == -1) {
-            growLights();
-            index = findNextLightIndex();
+            growThings();
+            index = findNextThingIndex();
         }
 
         Light light = new Light(
                 lightType,
-                lightStrength,
+                thingstrength,
                 coordinates,
                 rotation,
                 collectionName
@@ -271,7 +239,7 @@ public class World {
             collection.storeThing(light);
         }
 
-        lights[index] = light;
+        things[index] = light;
 
     }
 
@@ -281,11 +249,11 @@ public class World {
 
     public void storeObject(String objPath, String collectionName) {
 
-        int index = findNextMeshIndex();
+        int index = findNextThingIndex();
 
         if (index == -1) {
-            growMeshes();
-            index = findNextMeshIndex();
+            growThings();
+            index = findNextThingIndex();
         }
 
         try {
@@ -300,7 +268,7 @@ public class World {
                 collection.storeThing(mesh);
             }
 
-            meshes[index] = mesh;
+            things[index] = mesh;
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -312,8 +280,15 @@ public class World {
     // =========================================================
 
     public int getCollectionIndex(String collectionName) {
-        for(int i = 0; i < collections.length & collections[i] != null; i ++) {
-            if(collections[i].name == collectionName) {
+        if (collectionName == null) {
+            return -1;
+        }
+
+        for (int i = 0; i < collections.length; i++) {
+            Collection collection = collections[i];
+
+            if (collection != null
+                    && collectionName.equals(collection.name)) {
                 return i;
             }
         }

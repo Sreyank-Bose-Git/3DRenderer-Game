@@ -6,6 +6,7 @@ import types.things.Mesh;
 import types.parts.Line;
 import types.parts.Triangle;
 import types.parts.Vertex;
+import types.things.Thing;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -66,8 +67,8 @@ public class Renderer {
         }
 
         World world = rendererPanel.world;
-        Camera camera = world.cameras[world.activeCameraIndex];
-        if (camera == null || camera.coordinates == null || camera.rotation == null
+        Camera camera = (Camera) world.things[world.activeCameraIndex];
+        if (camera == null || camera.actualCoordinates == null || camera.actualRotation == null
                 || rendererPanel.scripts == null) {
             drawBlackScreen(g2D);
             return;
@@ -76,38 +77,39 @@ public class Renderer {
         Arrays.fill(zBuffer, Double.POSITIVE_INFINITY);
         Arrays.fill(cBuffer, Color.BLACK);
 
-        if (world.meshes != null) {
-            // Remove cache entries for meshes no longer in this world.
-            meshCache.keySet().removeIf(cached -> {
-                for (Mesh mesh : world.meshes) if (mesh == cached) return false;
-                return true;
-            });
+        // Remove cache entries for meshes no longer in this world.
+        meshCache.keySet().removeIf(cached -> {
+            for (Thing thing : world.things) if (thing == cached) return false;
+            return true;
+        });
 
-            for (Mesh mesh : world.meshes) {
-                if (mesh == null || !mesh.visible || !mesh.generated) continue;
+        for (Thing thing : world.things) {
+            if (thing == null) continue;
 
-                MeshRenderData data = getRenderData(mesh);
-                updateTransformedVertices(mesh, data);
+            if (!(thing instanceof Mesh mesh)) continue;
+            if (!mesh.generated || !mesh.visible) continue;
 
-                currentVertices = data.vertices;
-                currentLines = data.lines;
-                currentTriangles = data.triangles;
+            MeshRenderData data = getRenderData(mesh);
+            updateTransformedVertices(mesh, data);
 
-                // Smooth normals are calculated for this mesh using transformed geometry.
-                rendererPanel.scripts.beginFrame();
+            currentVertices = data.vertices;
+            currentLines = data.lines;
+            currentTriangles = data.triangles;
 
-                for (Triangle triangle : currentTriangles) {
-                    if (triangle == null) continue;
-                    rendererPanel.scripts.drawTriangle(triangle, camera);
-                }
-                for (Line line : currentLines) {
-                    if (line == null) continue;
-                    rendererPanel.scripts.drawLine(line, camera);
-                }
-                for (Vertex vertex : currentVertices) {
-                    if (vertex == null) continue;
-                    rendererPanel.scripts.drawVertex(vertex, camera);
-                }
+            // Smooth normals are calculated for this mesh using transformed geometry.
+            rendererPanel.scripts.beginFrame();
+
+            for (Triangle triangle : currentTriangles) {
+                if (triangle == null) continue;
+                rendererPanel.scripts.drawTriangle(triangle, camera);
+            }
+            for (Line line : currentLines) {
+                if (line == null) continue;
+                rendererPanel.scripts.drawLine(line, camera);
+            }
+            for (Vertex vertex : currentVertices) {
+                if (vertex == null) continue;
+                rendererPanel.scripts.drawVertex(vertex, camera);
             }
         }
 
@@ -177,9 +179,9 @@ public class Renderer {
     /** Scale, rotate X then Y then Z, then translate, without per-frame allocations. */
     private void transformInto(Vector3 vertex, Mesh mesh, Vector3 out) {
 
-        double x = (vertex.x * mesh.scale.x);
-        double y = vertex.y * mesh.scale.y;
-        double z = vertex.z * mesh.scale.z;
+        double x = (vertex.x * mesh.actualScale.x);
+        double y = vertex.y * mesh.actualScale.y;
+        double z = vertex.z * mesh.actualScale.z;
 
         double angle = Math.toRadians(mesh.actualRotation.x);
         double cos = Math.cos(angle), sin = Math.sin(angle);

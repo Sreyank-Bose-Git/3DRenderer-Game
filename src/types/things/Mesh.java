@@ -9,9 +9,6 @@ import java.util.List;
 
 public class Mesh extends Thing {
 
-    // Transform
-    public Vector3 scale = new Vector3(1, 1, 1);
-
     // Rendering properties
     public boolean visible = true;
     public boolean opaque = true;
@@ -24,9 +21,9 @@ public class Mesh extends Thing {
     public float edgeThickness = 1.0f;
 
     // Geometry owned by this mesh
-    public final List<VertexData> vertices = new ArrayList<>();
-    public final List<EdgeData> edges = new ArrayList<>();
-    public final List<TriangleData> triangles = new ArrayList<>();
+    public final java.util.List<Mesh.VertexData> vertices = new ArrayList<>();
+    public final java.util.List<Mesh.EdgeData> edges = new ArrayList<>();
+    public final List<Mesh.TriangleData> triangles = new ArrayList<>();
 
     // Lifecycle
     public boolean generated = false;

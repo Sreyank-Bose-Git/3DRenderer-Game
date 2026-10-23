@@ -843,7 +843,7 @@ public class Scripts {
 
             double intensity = rendererPanel.lightManager.calculateIntensity(
                     worldX, worldY, worldZ, nx, ny, nz,
-                    rendererPanel.world.lights
+                    rendererPanel.world.things
             );
 
             Color texel = texture.sampleRepeat(u, v);
@@ -1006,12 +1006,12 @@ public class Scripts {
 
         double radYaw =
                 Math.toRadians(
-                        camera.rotation.y
+                        camera.actualRotation.y
                 );
 
         double radPitch =
                 Math.toRadians(
-                        camera.rotation.x
+                        camera.actualRotation.x
                 );
 
         double cosYaw =
@@ -1028,15 +1028,15 @@ public class Scripts {
 
         double dx =
                 worldPoint.x -
-                        camera.coordinates.x;
+                        camera.actualCoordinates.x;
 
         double dy =
                 worldPoint.y -
-                        camera.coordinates.y;
+                        camera.actualCoordinates.y;
 
         double dz =
                 worldPoint.z -
-                        camera.coordinates.z;
+                        camera.actualCoordinates.z;
 
         double x1 =
                 dx * cosYaw -

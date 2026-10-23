@@ -20,7 +20,7 @@ public class Object extends Mesh {
     private final World world;
     private final ObjectParser.Data data;
 
-    private double[] center = {0, 0, 0};
+    public double[] center = {0, 0, 0};
 
     public boolean centerAtOrigin = true;
 
@@ -33,6 +33,7 @@ public class Object extends Mesh {
 
     // Cache textures so the same material image is not loaded repeatedly.
     public final Map<String, Texture> textureCache = new HashMap<>();
+
 
     public Object(World world, String objPath, String collectionName) throws IOException {
         this.world = world;
