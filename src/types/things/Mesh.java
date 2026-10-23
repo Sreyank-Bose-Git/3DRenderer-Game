@@ -54,10 +54,6 @@ public class Mesh extends Thing {
 
     }
 
-    public void updateTransform() {
-        // Transform is applied by Renderer; override if needed.
-    }
-
     // Cleanup
     public void dispose() {
         vertices.clear();

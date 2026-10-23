@@ -635,7 +635,7 @@ public class Scripts {
     }
 
 
-    // Perspective-correct scanline rasterization. Screen points store [x,y,z,u,v].
+    // Perspective-correct scanLine rasterization. Screen points store [x,y,z,u,v].
 
 
     private void rasterizeTexturedTriangle(

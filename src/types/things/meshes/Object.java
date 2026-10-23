@@ -259,15 +259,6 @@ public class Object extends Mesh {
         return ((long) min << 32) | (max & 0xffffffffL);
     }
 
-    /**
-     * Geometry remains in local space. The renderer should apply this
-     * mesh's position, scale and actualRotation when drawing it.
-     */
-    @Override
-    public void updateTransform() {
-        // No vertex rewriting is needed in the local-space design.
-    }
-
     @Override
     public void dispose() {
         if (disposed) {

@@ -207,7 +207,6 @@ public class Camera extends Thing {
     /**
      * Tests the player's cuboid against every triangle belonging
      * to every generated mesh in the world.
-     *
      * Triangle vertices are transformed into world localCoordinates
      * using the same transform order as Renderer:
      * scale, rotate X, rotate Y, rotate Z, translate.

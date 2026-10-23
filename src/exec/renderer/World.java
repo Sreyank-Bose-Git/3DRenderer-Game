@@ -211,7 +211,7 @@ public class World {
 
     public void storeLight(
             String lightType,
-            double thingstrength,
+            double thingStrength,
             Vector3 coordinates,
             Vector3 rotation,
             String collectionName) {
@@ -225,7 +225,7 @@ public class World {
 
         Light light = new Light(
                 lightType,
-                thingstrength,
+                thingStrength,
                 coordinates,
                 rotation,
                 collectionName
