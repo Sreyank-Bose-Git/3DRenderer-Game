@@ -24,7 +24,7 @@ public class RendererPanel extends JPanel implements Runnable{
     public final int screenWidth = totalScreenCols * singlePixelSize;
     public final int screenHeight = totalScreenRows * singlePixelSize;
 
-    public final int framesPerSecond = 160;
+    public final int framesPerSecond = 60;
     public final long frameInterval = 1000000000 / framesPerSecond;
     public long workTime;
 

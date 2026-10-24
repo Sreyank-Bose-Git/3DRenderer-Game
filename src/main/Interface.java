@@ -59,6 +59,15 @@ public class Interface {
             else {
                 exitColor = Color.red;
             }
+
+            if(rendererPanel.keyHandler.prevCam) {
+                rendererPanel.world.prevCam();
+                rendererPanel.keyHandler.prevCam = false;
+            }
+            else if(rendererPanel.keyHandler.nextCam) {
+                rendererPanel.world.nextCam();
+                rendererPanel.keyHandler.nextCam = false;
+            }
         }
 
         if(!rendererPanel.gameState.equals(prevGameState)) {

@@ -4,7 +4,6 @@ import types.datatypes.Vector3;
 import exec.file.MaterialParser;
 import exec.file.ObjectParser;
 import exec.renderer.World;
-import types.things.Mesh;
 import types.visuals.Texture;
 
 import java.io.IOException;

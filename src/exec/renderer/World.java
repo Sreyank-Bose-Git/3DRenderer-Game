@@ -4,7 +4,7 @@ import exec.extras.Collection;
 import main.RendererPanel;
 import types.datatypes.Vector2;
 import types.datatypes.Vector3;
-import types.things.Mesh;
+import types.things.meshes.Mesh;
 import types.things.Light;
 import types.things.meshes.Object;
 import types.things.Thing;
@@ -60,6 +60,11 @@ public class World {
 
         storeObject("/types/objects/cube.obj", "default");
 
+        storeCamera(
+                new Vector3(0, 500, -200),
+                new Vector2(0, 0)
+        );
+
         Thing mesh = things[2];
 
         if (mesh != null) {
@@ -102,6 +107,25 @@ public class World {
             things[i].actualScale.x = things[i].localScale.x + collections[getCollectionIndex(things[i].collectionName)].scale.x;
             things[i].actualScale.y = things[i].localScale.y + collections[getCollectionIndex(things[i].collectionName)].scale.y;
             things[i].actualScale.z = things[i].localScale.z + collections[getCollectionIndex(things[i].collectionName)].scale.z;
+        }
+    }
+    public void prevCam() {
+        for(int i = activeCameraIndex - 1; i >= 0; i--) {
+            if(things[i] instanceof Camera camera) {
+                System.out.println("Camera Changed!");
+                activeCameraIndex = i;
+                break;
+            }
+        }
+    }
+
+    public void nextCam() {
+        for(int i = activeCameraIndex + 1; i < things.length && things[i] != null; i++) {
+            if(things[i] instanceof Camera camera) {
+                System.out.println("Camera Changed!");
+                activeCameraIndex = i;
+                break;
+            }
         }
     }
 

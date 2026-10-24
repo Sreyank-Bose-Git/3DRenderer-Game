@@ -1,6 +1,7 @@
-package types.things;
+package types.things.meshes;
 
 import types.datatypes.Vector3;
+import types.things.Thing;
 import types.visuals.Texture;
 
 import java.awt.Color;

@@ -2,7 +2,7 @@ package exec.renderer;
 
 import main.RendererPanel;
 import types.datatypes.Vector3;
-import types.things.Mesh;
+import types.things.meshes.Mesh;
 import types.parts.Line;
 import types.parts.Triangle;
 import types.parts.Vertex;

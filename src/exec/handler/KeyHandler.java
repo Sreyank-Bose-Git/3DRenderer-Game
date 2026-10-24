@@ -5,12 +5,18 @@ import java.awt.event.KeyListener;
 
 public class KeyHandler implements KeyListener {
 
-    public boolean forward, backward, leftward, rightward, jumpPressed, ePressed;
+    public boolean forward, backward, leftward, rightward, jumpPressed, ePressed, prevCam, nextCam;
 
     @Override
     public void keyTyped(KeyEvent e) {
         if(e.getKeyChar() == 'e') {
             ePressed = !ePressed;
+        }
+        else if(e.getKeyChar() == 'o') {
+            prevCam = true;
+        }
+        else if(e.getKeyChar() == 'p') {
+            nextCam = true;
         }
     }
 
