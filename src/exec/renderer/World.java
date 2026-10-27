@@ -1,5 +1,6 @@
 package exec.renderer;
 
+import entities.ordinary.Player;
 import exec.extras.Collection;
 import main.RendererPanel;
 import types.datatypes.Vector2;
@@ -42,11 +43,13 @@ public class World {
     private void createBasicWorld() {
 
         storeCamera(
-                new Vector3(0, 500, -200),
+                new Vector3(0, 0, 0),
                 new Vector2(0, 0)
         );
 
-        activeCameraIndex = 0;
+        storePlayer(0, new Vector3(0, 500, -200), new Vector2(0, 0), "default");
+
+        activeCameraIndex = ((Player) things[1]).activeCameraIndex;
 
         storeLight(
                 "point",
@@ -65,7 +68,7 @@ public class World {
                 new Vector2(0, 0)
         );
 
-        Thing mesh = things[2];
+        Thing mesh = things[3];
 
         if (mesh != null) {
             mesh.localScale.x *= 1000;
@@ -73,7 +76,7 @@ public class World {
             mesh.localScale.z *= 1000;
         }
 
-        mesh = things[3];
+        mesh = things[4];
 
         if (mesh != null) {
             mesh.localScale.x *= 10;
@@ -88,8 +91,6 @@ public class World {
     public void update() {
 
         collectionInclusion();
-
-
     }
 
     void collectionInclusion() {
@@ -297,6 +298,22 @@ public class World {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void storePlayer(int activeCameraIndex, Vector3 coordinates,
+                            Vector2 rotation,
+                            String collectionName) {
+
+        int index = findNextThingIndex();
+
+        if (index == -1) {
+            growThings();
+            index = findNextThingIndex();
+        }
+
+        Player player = new Player(rendererPanel, activeCameraIndex, coordinates, rotation, collectionName);
+
+        things[index] = player;
     }
 
     // =========================================================

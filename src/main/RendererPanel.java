@@ -118,7 +118,7 @@ public class RendererPanel extends JPanel implements Runnable{
 
         world.update();
         renderer.update();
-        world.things[world.activeCameraIndex].update();
+        world.things[1].update();
         myInterface.update();
     }
 
