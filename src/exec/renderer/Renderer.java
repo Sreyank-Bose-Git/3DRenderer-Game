@@ -1,5 +1,6 @@
 package exec.renderer;
 
+import entities.ordinary.Player;
 import main.RendererPanel;
 import types.datatypes.Vector3;
 import types.things.meshes.Mesh;
@@ -67,7 +68,7 @@ public class Renderer {
         }
 
         World world = rendererPanel.world;
-        Camera camera = (Camera) world.things[world.activeCameraIndex];
+        Camera camera = (Camera) world.things[world.getActivePlayer().activeCameraIndex];
         if (camera == null || camera.actualCoordinates == null || camera.actualRotation == null
                 || rendererPanel.scripts == null) {
             drawBlackScreen(g2D);

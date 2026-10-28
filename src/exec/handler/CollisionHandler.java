@@ -17,7 +17,7 @@ public class CollisionHandler {
      * @param width   Cuboid size along the X axis
      * @param height  Cuboid size along the Y axis
      */
-    public boolean checkCameraTriangleCollision(
+    public boolean checkTriangleCollision(
             Vector3 a,
             Vector3 b,
             Vector3 c,

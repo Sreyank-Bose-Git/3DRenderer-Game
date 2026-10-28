@@ -5,33 +5,21 @@ import types.things.Thing;
 
 import java.util.Arrays;
 
-public class Collection {
+public class Collection extends Thing{
 
     public String name;
     public Thing[] things;
-
-    public Vector3 coordinates;
-    public Vector3 scale;
-    public Vector3 rotation;
 
     public Collection(String name) {
         this.name = name;
         things = new Thing[10];
 
-        this.coordinates = new Vector3(0, 0, 0);
-        this.scale = new Vector3(1, 1, 1);
-        this.rotation = new Vector3(0, 0, 0);
+        this.localCoordinates = new Vector3(0, 0, 0);
+        this.localScale = new Vector3(1, 1, 1);
+        this.localRotation = new Vector3(0, 0, 0);
     }
 
-    public Collection(String name, Thing[] things, Vector3 coordinates, Vector3 scale, Vector3 rotation) {
-        this.name = name;
-        this.things = things;
-        this.coordinates = coordinates;
-        this.scale = scale;
-        this.rotation = rotation;
-    }
-
-    public int storeThing(Thing thing) {
+    public void storeThing(Thing thing) {
 
         int index = findNextThingIndex();
 
@@ -42,7 +30,6 @@ public class Collection {
 
         things[index] = thing;
 
-        return index;
     }
 
     private int findNextThingIndex() {
