@@ -1,4 +1,5 @@
 
+
 package entities.ordinary;
 
 import exec.extras.Collection;
@@ -46,10 +47,18 @@ public class Player extends Thing {
 
     public double distance = 20.0;
 
+    // Maximum body turning speed in degrees per second.
+    public double bodyTurnSpeed = 100.0;
+
     public String objectsCollectionName;
     public Collection objectsCollection;
 
     public Thing head;
+
+    // Camera aim is independent of the body's facing direction.
+    private double cameraYaw;
+    private double cameraPitch;
+    private boolean cameraAimInitialized;
 
     public Player(
             RendererPanel rendererPanel,
@@ -69,8 +78,12 @@ public class Player extends Thing {
                 coordinates.z
         );
 
-        this.localRotation.x = rotation.x;
+        this.localRotation.x = 0.0;
         this.localRotation.y = rotation.y;
+
+        this.cameraYaw = rotation.y;
+        this.cameraPitch = rotation.x;
+        this.cameraAimInitialized = true;
 
         this.objectsCollectionName = objectsCollectionName;
 
@@ -126,74 +139,132 @@ public class Player extends Thing {
             return;
         }
 
-        // Read world transforms through actual*.
-        // Apply player changes through local*.
+        if (!cameraAimInitialized) {
+            cameraYaw = actualRotation.y;
+            cameraPitch = 0.0;
+            cameraAimInitialized = true;
+        }
+
         playRotateHandler();
         playMovementHandler();
 
-        // Synchronize the visual body only if it is a separate collection.
-        // Never move or rotate the root "default" collection.
         Collection defaultCollection =
                 rendererPanel.world.getCollection("default");
 
+        // The visual body follows the player's position and body yaw only.
         if (objectsCollection != defaultCollection) {
             objectsCollection.localCoordinates.x = localCoordinates.x;
             objectsCollection.localCoordinates.y = localCoordinates.y;
             objectsCollection.localCoordinates.z = localCoordinates.z;
-
             objectsCollection.localRotation.y = localRotation.y;
-        }
-
-        // Apply head pitch locally; read its resulting world rotation below.
-        if (head != null) {
-            head.localRotation.x = localRotation.x;
-            head.localRotation.z = 0.0;
+            objectsCollection.localRotation.x = 0.0;
+            objectsCollection.localRotation.z = 0.0;
         }
 
         Camera camera = getActiveCamera();
-
         if (camera == null || head == null) {
             return;
         }
 
-        // Read world-space head position and orientation from actual*.
-        double yaw = Math.toRadians(objectsCollection.actualRotation.y);
-        double pitch = Math.toRadians(head.actualRotation.x);
+        // Head aim is relative to the body's yaw, so looking around does
+        // not rotate the body. Pitch is applied to the head only.
+        head.localRotation.x = cameraPitch;
+        head.localRotation.y = normalizeDegrees(
+                cameraYaw - objectsCollection.actualRotation.y);
+        head.localRotation.z = 0.0;
 
+        double yaw = Math.toRadians(cameraYaw);
+        double pitch = Math.toRadians(cameraPitch);
         double horizontalDistance = distance * Math.cos(pitch);
 
         double cameraX = head.actualCoordinates.x
                 - Math.sin(yaw) * horizontalDistance;
-
         double cameraY = head.actualCoordinates.y
                 + Math.sin(pitch) * distance;
-
         double cameraZ = head.actualCoordinates.z
                 - Math.cos(yaw) * horizontalDistance;
 
-        // Convert the desired world position to the camera parent's
-        // local position. This assumes the parent has no rotation or scale.
         Collection cameraParent = camera.collectionName == null
                 ? null
                 : rendererPanel.world.getCollection(camera.collectionName);
 
-        if (cameraParent != null) {
-            camera.localCoordinates.x =
-                    cameraX - cameraParent.actualCoordinates.x;
-            camera.localCoordinates.y =
-                    cameraY - cameraParent.actualCoordinates.y;
-            camera.localCoordinates.z =
-                    cameraZ - cameraParent.actualCoordinates.z;
-        } else {
-            camera.localCoordinates.x = cameraX;
-            camera.localCoordinates.y = cameraY;
-            camera.localCoordinates.z = cameraZ;
+        // Convert world position to parent-local coordinates with inverse
+        // parent rotation as well as inverse translation.
+        worldToParentLocal(cameraX, cameraY, cameraZ, cameraParent,
+                camera.localCoordinates);
+
+        // Camera orientation tracks the independent view direction.
+        camera.localRotation.x = -cameraPitch
+                - (cameraParent == null ? 0.0 : cameraParent.actualRotation.x);
+        camera.localRotation.y = cameraYaw
+                - (cameraParent == null ? 0.0 : cameraParent.actualRotation.y);
+        camera.localRotation.z = 0.0;
+    }
+
+    private static double normalizeDegrees(double angle) {
+        angle %= 360.0;
+        return angle < 0.0 ? angle + 360.0 : angle;
+    }
+
+    /** Rotates from the current angle toward the target by at most maxDelta. */
+    private static double rotateTowardsDegrees(
+            double current, double target, double maxDelta) {
+        double difference = (target - current + 540.0) % 360.0 - 180.0;
+
+        if (Math.abs(difference) <= maxDelta) {
+            return normalizeDegrees(target);
         }
 
-        // Apply camera rotation locally.
-        camera.localRotation.x = -head.actualRotation.x;
-        camera.localRotation.y = objectsCollection.actualRotation.y;
-        camera.localRotation.z = 0.0;
+        return normalizeDegrees(current + Math.copySign(maxDelta, difference));
+    }
+
+    /**
+     * Converts a world-space point to coordinates relative to a parent,
+     * undoing the parent's translation and X/Y/Z rotations.
+     */
+    private void worldToParentLocal(
+            double worldX, double worldY, double worldZ,
+            Collection parent, Vector3 out) {
+
+        if (parent == null) {
+            out.x = worldX;
+            out.y = worldY;
+            out.z = worldZ;
+            return;
+        }
+
+        double x = worldX - parent.actualCoordinates.x;
+        double y = worldY - parent.actualCoordinates.y;
+        double z = worldZ - parent.actualCoordinates.z;
+
+        // Inverse rotation Z.
+        double angle = Math.toRadians(-parent.actualRotation.z);
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+        double nextX = x * cos - y * sin;
+        double nextY = x * sin + y * cos;
+        x = nextX;
+        y = nextY;
+
+        // Inverse rotation Y.
+        angle = Math.toRadians(-parent.actualRotation.y);
+        cos = Math.cos(angle);
+        sin = Math.sin(angle);
+        nextX = x * cos + z * sin;
+        double nextZ = -x * sin + z * cos;
+        x = nextX;
+        z = nextZ;
+
+        // Inverse rotation X.
+        angle = Math.toRadians(-parent.actualRotation.x);
+        cos = Math.cos(angle);
+        sin = Math.sin(angle);
+        nextY = y * cos - z * sin;
+        nextZ = y * sin + z * cos;
+
+        out.x = nextX;
+        out.y = nextY;
+        out.z = nextZ;
     }
 
     public void playMovementHandler() {
@@ -205,7 +276,7 @@ public class Player extends Thing {
                 rendererPanel.frameInterval / 1_000_000_000.0;
 
         // Read the player's current world-space yaw.
-        double rY = Math.toRadians(actualRotation.y);
+        double rY = Math.toRadians(cameraYaw);
         double sinY = Math.sin(rY);
         double cosY = Math.cos(rY);
 
@@ -327,23 +398,37 @@ public class Player extends Thing {
             gravity = 0.0;
         }
 
-        // 6. Convert the resolved world position back to local space.
-        // Read the parent's world position through actualCoordinates.
+        // 6. Turn the body only when movement has a direction.
+        // Camera yaw controls movement direction; body yaw follows movement.
+        if (Math.abs(moveX) > 1e-9 || Math.abs(moveZ) > 1e-9) {
+            double worldBodyYaw =
+                    Math.toDegrees(Math.atan2(moveX, moveZ));
+
+            Collection playerParent = collectionName == null
+                    ? null
+                    : rendererPanel.world.getCollection(collectionName);
+
+            double parentYaw = playerParent == null
+                    ? 0.0
+                    : playerParent.actualRotation.y;
+
+            double targetLocalYaw = normalizeDegrees(worldBodyYaw - parentYaw);
+            double maxTurn = Math.max(0.0, bodyTurnSpeed) * timeStep;
+            localRotation.y = rotateTowardsDegrees(
+                    normalizeDegrees(localRotation.y),
+                    targetLocalYaw,
+                    maxTurn);
+        }
+
+        // Convert the resolved world position to parent-local coordinates,
+        // accounting for the parent's rotation as well as translation.
         Collection parent = collectionName == null
                 ? null
                 : rendererPanel.world.getCollection(collectionName);
 
-        double parentX =
-                parent == null ? 0.0 : parent.actualCoordinates.x;
-        double parentY =
-                parent == null ? 0.0 : parent.actualCoordinates.y;
-        double parentZ =
-                parent == null ? 0.0 : parent.actualCoordinates.z;
-
-        // Apply the result through localCoordinates.
-        localCoordinates.x = tempCoords.x - parentX;
-        localCoordinates.y = tempCoords.y - parentY;
-        localCoordinates.z = tempCoords.z - parentZ;
+        worldToParentLocal(
+                tempCoords.x, tempCoords.y, tempCoords.z,
+                parent, localCoordinates);
     }
 
     /**
@@ -487,26 +572,14 @@ public class Player extends Thing {
             return;
         }
 
-        // Apply mouse rotation locally.
-        localRotation.y += rendererPanel.mouseHandler.deltaYaw;
-        localRotation.x += rendererPanel.mouseHandler.deltaPitch;
+        // Mouse controls the view, not the body.
+        cameraYaw += rendererPanel.mouseHandler.deltaYaw;
+        cameraPitch += rendererPanel.mouseHandler.deltaPitch;
 
-        // Consume mouse input.
         rendererPanel.mouseHandler.deltaYaw = 0.0;
         rendererPanel.mouseHandler.deltaPitch = 0.0;
 
-        // Prevent vertical camera flipping.
-        localRotation.x = Math.clamp(
-                localRotation.x,
-                -80.0,
-                80.0
-        );
-
-        // Normalize yaw to [0, 360).
-        localRotation.y %= 360.0;
-
-        if (localRotation.y < 0.0) {
-            localRotation.y += 360.0;
-        }
+        cameraPitch = Math.clamp(cameraPitch, -80.0, 80.0);
+        cameraYaw = normalizeDegrees(cameraYaw);
     }
 }
