@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Thanks for your interest in contributing to **3DRenderer-Game**.
+Thanks for your interest in contributing to **OpenStreets**.
 
 ## Before You Start
 
