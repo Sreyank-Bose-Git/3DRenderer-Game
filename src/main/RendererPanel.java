@@ -8,6 +8,7 @@ import exec.renderer.Renderer;
 import exec.renderer.World;
 import exec.visuals.LightManager;
 import exec.visuals.TextureManager;
+import main.interfaces.Interface;
 
 import javax.swing.*;
 import java.awt.*;
@@ -31,13 +32,15 @@ public class RendererPanel extends JPanel implements Runnable{
     public long startTime;
     public int frames;
 
+    public boolean isSecond = false;
+
     public String gameState;
 
     public Thread rendererThread;
     public boolean rendererRunning = true;
 
     PointerInfo pointerInfo;
-    Point mouseLocation;
+    public Point mouseLocation;
 
     public Renderer renderer;
     public World world;
@@ -95,6 +98,11 @@ public class RendererPanel extends JPanel implements Runnable{
                 System.out.println("FPS: " + frames);
                 frames = 0;
                 startTime = System.nanoTime();
+
+                isSecond = true;
+            }
+            else {
+                isSecond = false;
             }
 
             if(workTime - System.nanoTime() <= 0) {
